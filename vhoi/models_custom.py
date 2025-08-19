@@ -495,38 +495,25 @@ class TGGCN_Custom(nn.Module):
         ux_hss, ux_oss = [[] for _ in range(num_humans)], [[] for _ in range(num_objects)]  # Soft
         ax_hf = [[] for _ in range(num_humans)]
 
-        # ================================================================================================================================
-        # ORIGINAL
-        # ================================================================================================================================
+        # gcn
+        x_human, x_geometry = torch.split(x_human, [2048, 36 * num_humans + 32], dim=-1)
+        
         if self.message_geometry_to_objects:
-            ## gcn ###
-            if x_human.shape[3] == 2124:  # CAD120
-                x_human, x_geometry = torch.split(x_human, [2048, 76], dim=-1)
-                x_geometry = x_geometry.squeeze(2)
-            elif x_human.shape[3] == 2168:  # Bimacs
-                x_human, x_geometry = torch.split(x_human, [2048, 120], dim=-1)
-                x_geometry = x_geometry[:, :, 0, :]
-            else:  # MPHOI (2152)
-                x_human, x_geometry = torch.split(x_human, [2048, 104], dim=-1)
-                x_geometry = x_geometry[:, :, 0, :]
+            x_geometry = x_geometry[:, :, 0, :]
             bs, t, vw = x_geometry.size()
             x_geometry = x_geometry.view(bs, t, vw // 4, 4)
             x_geometry = x_geometry.permute(0, 3, 2, 1).contiguous()
             x_geometry = self.geometry_embedding_gcn(x_geometry)
             x_geometry = x_geometry.unsqueeze(2)
             x_geometry = x_geometry.view(bs, t, 1, x_geometry.shape[1] * x_geometry.shape[3])
-            x_human, x_objects, x_geometry = self.human_embedding_mlp(x_human), self.object_embedding_mlp(
-                x_objects), self.geometry_embedding_mlp(x_geometry)
-
-        # ================================================================================================================================
-        # CUSTOM
-        # ================================================================================================================================
+            x_human, x_objects, x_geometry = (
+                self.human_embedding_mlp(x_human), 
+                self.object_embedding_mlp(x_objects), 
+                self.geometry_embedding_mlp(x_geometry),
+            )
         else:
-            x_human, x_geometry = torch.split(x_human, [2048, 36 * num_humans + 32], dim=-1)
             x_human, x_objects = self.human_embedding_mlp(x_human), self.object_embedding_mlp(x_objects)
         
-        # ================================================================================================================================
-
         # pdb.set_trace()
         x_list = [
             x_human, 
@@ -566,7 +553,6 @@ class TGGCN_Custom(nn.Module):
         x_objects_t = cat_valid_tensors([x_objects_temporal, x_objects_spatial], dim=-1)
         x_human_t = self.th_embedding_mlp(x_human_t)
         x_objects_t = self.to_embedding_mlp(x_objects_t)
-
 
         # pdb.set_trace()
         # Frame-level BiRNNs
