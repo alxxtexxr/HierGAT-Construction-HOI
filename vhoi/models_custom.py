@@ -22,7 +22,7 @@ from pyrutils.torch.models_gcn import Geo_gcn
 from pyrutils.torch.transformer import TransformerEncoder, TransformerEncoderLayer
 
 class TGGCN_Custom(nn.Module):
-    def __init__(self, input_size: tuple, num_classes: tuple, hidden_size: int = 128,
+    def __init__(self, input_size: tuple, num_classes: tuple, feat_dim: int = 2048, hidden_size: int = 128,
                  discrete_networks_num_layers: int = 1, discrete_optimization_strategy: str = 'gumbel-sigmoid',
                  filter_discrete_updates: bool = False, gcn_node: int = 26,
                  message_humans_to_human: bool = True, message_human_to_objects: bool = True,
@@ -40,6 +40,7 @@ class TGGCN_Custom(nn.Module):
             input_size - A 2-element tuple containing the input sizes of the human features and the object features.
             num_classes - A 2-element tuple containing the number of sub-activity classes and the number of object
                 affordance classes.
+            feat_dim - Visual feature dimension
             hidden_size - A positive integer representing the hidden size of the model's internal layers.
             discrete_networks_num_layers - Number of layers for the MLPs that learn discrete decisions.
             discrete_optimization_strategy - Strategy to use when updating discrete components of the model.
@@ -78,6 +79,7 @@ class TGGCN_Custom(nn.Module):
             bias - Whether to include a bias term in the internal layers of the model.
         """
         super(TGGCN_Custom, self).__init__()
+        self.feat_dim = feat_dim
         human_input_size, object_input_size = input_size
         num_subactivities, num_affordances = num_classes
         self.discrete_optimization_strategy = discrete_optimization_strategy
@@ -116,13 +118,13 @@ class TGGCN_Custom(nn.Module):
 
         # geometry
         self.geometry_embedding_gcn = Geo_gcn(self.gcn_node, 4, 128)
-        self.geometry_embedding_mlp = build_mlp([self.gcn_node * 128, 2048, hidden_size], ['relu', 'relu'], bias=bias)
+        self.geometry_embedding_mlp = build_mlp([self.gcn_node * 128, self.feat_dim, hidden_size], ['relu', 'relu'], bias=bias)
         self.geometry_bd_rnn = nn.GRU(hidden_size, hidden_size, num_layers=1, bias=bias, batch_first=True,
                                       bidirectional=True)
         self.geometry_bd_embedding_mlp = build_mlp([2 * hidden_size, hidden_size], ['relu'], bias=bias)
 
         # Human
-        self.human_embedding_mlp = build_mlp([2048, hidden_size], ['relu'], bias=bias)
+        self.human_embedding_mlp = build_mlp([self.feat_dim, hidden_size], ['relu'], bias=bias)
         self.human_bd_rnn = nn.GRU(hidden_size, hidden_size, num_layers=1, bias=bias, batch_first=True,
                                    bidirectional=True)
         self.human_bd_embedding_mlp = build_mlp([2 * hidden_size, hidden_size], ['relu'], bias=bias)
@@ -496,7 +498,7 @@ class TGGCN_Custom(nn.Module):
         ax_hf = [[] for _ in range(num_humans)]
 
         # gcn
-        x_human, x_geometry = torch.split(x_human, [2048, 36 * num_humans + 32], dim=-1)
+        x_human, x_geometry = torch.split(x_human, [self.feat_dim, 36 * num_humans + 32], dim=-1)
         
         if self.message_geometry_to_objects:
             x_geometry = x_geometry[:, :, 0, :]
