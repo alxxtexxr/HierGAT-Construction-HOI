@@ -18,7 +18,7 @@ from vhoi.models import (
 from pyrutils.itertools import negative_range
 from pyrutils.torch.general import cat_valid_tensors
 from pyrutils.torch.models import build_mlp
-from pyrutils.torch.models_gcn import Geo_gcn
+from pyrutils.torch.models_gcn_custom import Geo_gcn
 from pyrutils.torch.transformer import TransformerEncoder, TransformerEncoderLayer
 
 class TGGCN_Custom(nn.Module):
@@ -498,7 +498,11 @@ class TGGCN_Custom(nn.Module):
         ax_hf = [[] for _ in range(num_humans)]
 
         # gcn
-        x_human, x_geometry = torch.split(x_human, [self.feat_dim, 36 * num_humans + 32], dim=-1)
+        x_human, x_geometry = torch.split(
+            x_human, 
+            # [self.feat_dim, 36 * num_humans + 32], old
+            [self.feat_dim, 100], # WARN: Hardcoded!
+        dim=-1)
         
         if self.message_geometry_to_objects:
             x_geometry = x_geometry[:, :, 0, :]
