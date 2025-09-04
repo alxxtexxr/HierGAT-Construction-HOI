@@ -6,7 +6,7 @@ Install dependencies by running:
 pip install -r requirements_2025.txt
 ```
 
-## Download Data (cite from 2G-GCN:https://github.com/tanqiu98/2G-GCN)
+## Download Data (Cite from 2G-GCN: https://github.com/tanqiu98/2G-GCN)
 Please download the necessary data from the link below, and put the 
 downloaded data folder in this current directory (i.e. `./data/...`).
 
