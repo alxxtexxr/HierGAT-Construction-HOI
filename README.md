@@ -7,10 +7,8 @@ pip install -r requirements_2025.txt
 ```
 
 ## Download Data (Cite from 2G-GCN: https://github.com/tanqiu98/2G-GCN)
-Please download the necessary data from the link below, and put the 
+Please download the necessary data [here](https://drive.google.com/drive/folders/1yfwItIoQrAnbnk5GTjbbfN8Ls8Ybl_hr?usp=sharing) and put the 
 downloaded data folder in this current directory (i.e. `./data/...`).
-
-Link: [data](https://drive.google.com/drive/folders/1yfwItIoQrAnbnk5GTjbbfN8Ls8Ybl_hr?usp=sharing).
 
 ## Train the Model
 To train the model from scratch:
