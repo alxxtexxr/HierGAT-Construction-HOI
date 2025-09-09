@@ -5,3 +5,4 @@ outputs_hiergat
 predict_results
 *.old.*
 *.tmp.*
+*.log.*
