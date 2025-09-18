@@ -21,7 +21,7 @@ from pyrutils.torch.models import build_mlp
 from pyrutils.torch.models_gcn_custom import Geo_gcn
 from pyrutils.torch.transformer import TransformerEncoder, TransformerEncoderLayer
 
-class TGGCN_Custom(nn.Module):
+class TGGCN(nn.Module):
     def __init__(self, input_size: tuple, num_classes: tuple, feat_dim: int = 2048, hidden_size: int = 128,
                  discrete_networks_num_layers: int = 1, discrete_optimization_strategy: str = 'gumbel-sigmoid',
                  filter_discrete_updates: bool = False, gcn_node: int = 26,
@@ -78,7 +78,7 @@ class TGGCN_Custom(nn.Module):
             share_level_mlps - If True, share the predictions MLPs of first and second levels.
             bias - Whether to include a bias term in the internal layers of the model.
         """
-        super(TGGCN_Custom, self).__init__()
+        super(TGGCN, self).__init__()
         self.feat_dim = feat_dim
         human_input_size, object_input_size = input_size
         num_subactivities, num_affordances = num_classes
