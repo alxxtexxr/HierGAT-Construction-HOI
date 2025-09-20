@@ -67,7 +67,6 @@ def create_data(feature_dirs, downsampling: int = 1, test_data: bool = False):
 def assemble_mphoi_frame_level_recurrent_human(
     human_features_list, human_poses_list, object_boxes_list, gt_list,
     downsampling: int = 1, 
-    # test_data: bool = False, 
     max_no_objects: int = 4
 ):
     xs_h, xs_hp, x_obb = [], [], []
@@ -106,8 +105,7 @@ def assemble_mphoi_frame_level_recurrent_human(
             b = b.reshape(max_no_objects * 2, 2)
             bb.append(b)
         xs_obb.append(bb)
-
-    # keypoints = [1, 2, 4, 6, 7, 11, 13, 14, 27]
+    
     keypoints = list(range(human_poses_list[0][0].shape[1]))
     xs_h_with_context = []
     for i, (humans_ds, poses_ds, obb_video) in enumerate(zip(xs_h, xs_hp, xs_obb)):
@@ -326,14 +324,14 @@ def assemble_mphoi_object_object_distances(object_boxes_list, downsampling: int 
     for obj_bbs in object_boxes_list:
         # Downsample and compute centroids
         obj_bbs = obj_bbs[downsampling - 1::downsampling]
-        objs_centroid = compute_centroid(obj_bbs) / mphoi_dims   # (frames, num_objects, 2)
+        objs_centroid = compute_centroid(obj_bbs) / mphoi_dims # (frames, num_objects, 2)
         num_objects = objs_centroid.shape[1]
 
         # Compute pairwise distances per frame
         dists = []
         for k in range(num_objects):
             kth_object_centroid = objs_centroid[:, k:k+1]  # (frames, 1, 2)
-            kth_dist = np.linalg.norm(objs_centroid - kth_object_centroid, ord=2, axis=-1)  # (frames, num_objects)
+            kth_dist = np.linalg.norm(objs_centroid - kth_object_centroid, ord=2, axis=-1) # (frames, num_objects)
             dists.append(kth_dist)
 
         dists = np.stack(dists, axis=1)  # (frames, num_objects, num_objects)
