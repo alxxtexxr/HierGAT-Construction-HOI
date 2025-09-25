@@ -13,7 +13,8 @@ from vhoi.data_loading import (
 )
 from pyrutils.torch.train_utils import numpy_to_torch
 
-def create_data(feature_dirs, downsampling: int = 1, test_data: bool = False):
+def create_data(feature_dirs, action_classes, new_action_classes, 
+                downsampling: int = 1, test_data: bool = False):
     human_features_list = []
     human_boxes_list = []
     human_poses_list = []
@@ -43,9 +44,11 @@ def create_data(feature_dirs, downsampling: int = 1, test_data: bool = False):
         # Extract and store ground-truth action label
         if not test_data:
             action_label = int(str(feature_dir).split('_action_')[-1])
+            action_class = action_classes[action_label]
+            new_action_label = new_action_classes.index(action_class)
             seq_len = subject_visual_features.shape[0]
             gt_list.append({
-                'Human1': [action_label] * seq_len,
+                'Human1': [new_action_label] * seq_len,
             })
         
         # Store number of steps
