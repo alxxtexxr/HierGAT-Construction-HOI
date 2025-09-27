@@ -4,6 +4,5 @@ data
 outputs_hiergat
 predict_results
 *.old.*
-*.legacy.*
 *.tmp.*
 *.log.*
