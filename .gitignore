@@ -7,3 +7,4 @@ predict_results
 *.legacy.*
 *.tmp.*
 *.log.*
+*.local.*

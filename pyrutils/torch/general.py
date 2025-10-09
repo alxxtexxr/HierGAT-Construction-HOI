@@ -32,6 +32,10 @@ def pick_activation_function(activation: Union[str, dict]):
         'softmax': torch.nn.Softmax,
         'softplus': torch.nn.Softplus,
         'tanh': torch.nn.Tanh,
+        
+        # CUSTOM
+        'leaky_relu': torch.nn.LeakyReLU,
+        'gelu': torch.nn.GELU,
     }
     try:
         activation_name = activation.get('name')

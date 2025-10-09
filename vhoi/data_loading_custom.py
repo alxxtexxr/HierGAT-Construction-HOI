@@ -1,5 +1,6 @@
 import itertools
 from typing import Optional
+from pathlib import Path
 
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader
@@ -13,7 +14,7 @@ from vhoi.data_loading import (
 )
 from pyrutils.torch.train_utils import numpy_to_torch
 
-def create_data(feature_dirs, action_classes, new_action_classes, 
+def create_data(feature_dirs, action_classes, new_action_classes=None, 
                 downsampling: int = 1, test_data: bool = False):
     human_features_list = []
     human_boxes_list = []
@@ -24,6 +25,8 @@ def create_data(feature_dirs, action_classes, new_action_classes,
     xs_steps = []
 
     for feature_dir in feature_dirs:
+        feature_dir = Path(feature_dir)
+        
         # Load and store human (subject) features
         subject_visual_features = np.load(feature_dir / 'subject_visual_features.npy')
         subject_boxes = np.load(feature_dir / 'subject_boxes.npy')
@@ -43,12 +46,16 @@ def create_data(feature_dirs, action_classes, new_action_classes,
         
         # Extract and store ground-truth action label
         if not test_data:
-            action_label = int(str(feature_dir).split('_action_')[-1])
-            action_class = action_classes[action_label]
-            new_action_label = new_action_classes.index(action_class)
+            action_label_str = str(feature_dir).split('_action_')[-1]
+            if '_' in action_label_str:
+                action_label_str = action_label_str.split('_')[0]
+            action_label = int(action_label_str)
+            if isinstance(new_action_classes, (list, tuple)):
+                action_class = action_classes[action_label]
+                action_label = new_action_classes.index(action_class)
             seq_len = subject_visual_features.shape[0]
             gt_list.append({
-                'Human1': [new_action_label] * seq_len,
+                'Human1': [action_label] * seq_len,
             })
         
         # Store number of steps
