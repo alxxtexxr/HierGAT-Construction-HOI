@@ -7,3 +7,5 @@ predict_results
 *.tmp.*
 *.log.*
 *.local.*
+*_output.*
+Datasheet Info.ipynb
