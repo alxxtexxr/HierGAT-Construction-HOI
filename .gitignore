@@ -1,8 +1,11 @@
-__pycache__
-data
-!conf/data
-outputs_hiergat
-predict_results
+__pycache__/
+__trash__/
+data/
+eval/
+logs/
+outputs_hiergat/
+predict_results/
+!conf/data/
 *.old.*
 *.tmp.*
 *.log.*
