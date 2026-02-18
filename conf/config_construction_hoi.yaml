@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - models: 2G-GCN_construction_hoi
+  - data: construction_hoi
+hydra:
+  run:
+    dir: outputs_hiergat/construction_hoi/${models.metadata.model_name}/${models.logging.checkpoint_name}
+resources:
+  use_gpu: true
+  num_threads: 32

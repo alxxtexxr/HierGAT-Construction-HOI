@@ -1,0 +1,59 @@
+metadata:
+  model_name: 2G-GCN
+  input_type: multiple
+parameters:
+  add_segment_length: 0  # length of the segment to the segment-level rnn. 0 is off and 1 is on.
+  add_time_position: 0  # absolute time position to the segment-level rnn. 0 is off and 1 is on.
+  time_position_strategy: s  # input time position to segment [s] or discrete update [u].
+  positional_encoding_style: e  # e [embedding] or p [periodic].
+  attention_style: v3  # v1 [concat], v2 [dot-product], v3 [scaled_dot-product], v4 [general]
+  bias: true
+  cat_level_states: 0  # concatenate first and second level hidden states for predictors MLPs. 0 is off and 1 is on.
+  discrete_networks_num_layers: 1  # depth of the state change detector MLP.
+  discrete_optimization_strategy: gs  # straight-through [st] or gumbel-sigmoid [gs]
+  filter_discrete_updates: false  # maxima filter for soft output of state change detector.
+  gcn_node: 25 # custom, original: 19 for cad120, 30 for bimanual, 26 for mphoi
+  hidden_size: 512 # 512 for cad120 & mphoi; 64 for bimanual
+  message_humans_to_human: false  # custom, original: true, only meaningful for bimanual and mphoi dataset; false for cad120
+  message_human_to_objects: true
+  message_objects_to_human: true
+  message_objects_to_object: false  # custom, original: true
+  message_geometry_to_objects: true 
+  message_geometry_to_human: true # custom, original: false, note this!
+  message_segment: true
+  message_type: v2  # v1 [relational] or v2 [non-relational]
+  message_granularity: v1  # v1 [generic] or v2 [specific]
+  message_aggregation: att  # mean_pooling [mp] or attention [att]
+  object_segment_update_strategy: ind  # same_as_human [sah], independent [ind], or conditional_on_human [coh]
+  share_level_mlps: 0  # whether to share [1] or not [0] the prediction MLPs of the levels.
+  update_segment_threshold: 0.5  # [0.0, 1.0)
+optimization:
+  batch_size: 32  # custom, original: 8, mphoi:8; cad120:16; bimanual: 32
+  clip_gradient_at: 0.0
+  epochs: 10  # custom, original: 40, cad120 & mphoi:40; bimanual: 60
+  learning_rate: 1e-4  # mphoi:1e-4; cad120 & bimanual:1e-3
+  val_fraction: 0.1
+misc:
+  anticipation_loss_weight: 1.0
+  budget_loss:
+    add: false
+    human_weight: 1.0
+    object_weight: 1.0
+  first_level_loss_weight: 0.0  # if positive, first level does frame-level prediction
+  impose_segmentation_pattern: 1  # 0 [no pattern], 1 [all ones]
+  input_human_segmentation: false
+  input_object_segmentation: false
+  make_attention_distance_based: true  # only meaningful if message_aggregation is attention???
+  multi_task_loss_learner: false
+  pretrained: false  # unfortunately I need two entries for the checkpoint name
+  pretrained_path: null  # specified parameters must match parameters of the pre-trained model
+  segmentation_loss:
+    add: false
+    pretrain: false
+    sigma: 0.0  # Gaussian smoothing
+    weight: 1.0
+logging:
+  root_log_dir: ${oc.env:PWD}/outputs_hiergat/${data.name}/${models.metadata.model_name}
+  checkpoint_name: "hs${models.parameters.hidden_size}_e${models.optimization.epochs}_bs${models.optimization.batch_size}_\
+                    lr${models.optimization.learning_rate}_${models.parameters.update_segment_threshold}_${data.cross_validation_test_subject}"
+  log_dir: ${models.logging.root_log_dir}/${models.logging.checkpoint_name}
