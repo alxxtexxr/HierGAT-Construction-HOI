@@ -75,7 +75,8 @@ def main(
     downsampling = cfg.data.downsampling
     
     # Determine test feature directories for k-fold
-    feature_dirs_df = get_feature_dirs_df(FEATURE_DIRS, ACTION_CLASSES)
+    feature_dirs_df = get_feature_dirs_df(FEATURE_DIRS, ACTION_CLASSES, 
+                                          NEW_ACTION_CLASSES if 'NEW_ACTION_CLASSES' in globals() else None)
     feature_dir_counts = feature_dirs_df['base_dir'].value_counts().sort_values() # Count occurrences of each feature directory 
                                                                                   # and sort from lowest to highest
     kfold_test_feature_dirs = feature_dir_counts.index[:k]
@@ -121,7 +122,8 @@ def main(
         print()
         
         # Create data dataframe
-        df = create_data_df(train_feature_dirs_df['dir'].tolist(), ACTION_CLASSES, NEW_ACTION_CLASSES if 'new_action_classes' in globals() else None)
+        df = create_data_df(train_feature_dirs_df['dir'].tolist(), ACTION_CLASSES, 
+                            NEW_ACTION_CLASSES if 'NEW_ACTION_CLASSES' in globals() else None)
         
         # Split train and validation feature data
         printh("Train-Validation Splitting", 96)
@@ -209,7 +211,7 @@ def main(
         train_data = train_df[data_cols].to_numpy().T.tolist()
         val_data   = val_df[data_cols].to_numpy().T.tolist()
         test_data = create_data(test_feature_dirs_df['dir'].tolist(), ACTION_CLASSES, 
-                                NEW_ACTION_CLASSES if 'new_action_classes' in globals() else None)
+                                NEW_ACTION_CLASSES if 'NEW_ACTION_CLASSES' in globals() else None)
         
         # Create data loaders
         train_loader, scalers, _ = create_data_loader(

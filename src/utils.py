@@ -9,7 +9,7 @@ def printh(h, n=128):
     print(h)
     print("=" * n)
     
-def get_feature_dirs_df(feature_dirs, action_classes):
+def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
     feature_dir_dicts = []
     for dirs in feature_dirs:
         for dir in dirs.iterdir():
@@ -20,7 +20,7 @@ def get_feature_dirs_df(feature_dirs, action_classes):
                 is_interpolated = 1
             action_label = int(action_label_str)
             action_class = action_classes[action_label]
-            if 'new_action_classes' in globals():
+            if new_action_classes is not None:
                 try:
                     action_label = new_action_classes.index(action_class) # type: ignore
                 except ValueError:
