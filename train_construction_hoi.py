@@ -108,9 +108,18 @@ def main(
         print("Log directory:", log_dir)
         print()
         
-        # Split train and test feature directories
         printh("Train-Test Splitting", 96)
         
+        # Log training and test video IDs
+        test_video_id = Path(test_feature_dir).parent.stem.split('_')[0]
+        train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in FEATURE_DIRS if feature_dir != test_feature_dir]
+        
+        print("Test video ID:", test_video_id)
+        print("Training video ID:")
+        print(train_video_ids)
+        print()
+        
+        # Split train and test feature directories
         test_feature_dirs_df = feature_dirs_df[feature_dirs_df['base_dir'] == test_feature_dir]
         train_feature_dirs_df = feature_dirs_df[feature_dirs_df['base_dir'] != test_feature_dir]
         
@@ -120,6 +129,8 @@ def main(
         print("Test action label counts:")
         print(test_feature_dirs_df['action_label'].value_counts().sort_index())
         print()
+        
+        import pdb; pdb.set_trace()
         
         # Create data dataframe
         df = create_data_df(train_feature_dirs_df['dir'].tolist(), ACTION_CLASSES, 
@@ -303,7 +314,7 @@ def main(
 
         # Evaluation
         printh("Evaluation", 96)
-        print("Selected test video ID:", Path(test_feature_dir).parent.stem[:5])
+        print("Test video ID:", test_video_id)
         print()
 
         model.eval()
