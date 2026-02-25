@@ -130,8 +130,6 @@ def main(
         print(test_feature_dirs_df['action_label'].value_counts().sort_index())
         print()
         
-        import pdb; pdb.set_trace()
-        
         # Create data dataframe
         df = create_data_df(train_feature_dirs_df['dir'].tolist(), ACTION_CLASSES, 
                             NEW_ACTION_CLASSES if 'NEW_ACTION_CLASSES' in globals() else None)
