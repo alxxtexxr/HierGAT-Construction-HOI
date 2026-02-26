@@ -112,11 +112,16 @@ def main(
         
         # Log training and test video IDs
         test_video_id = Path(test_feature_dir).parent.stem.split('_')[0]
-        train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in FEATURE_DIRS if feature_dir != test_feature_dir]
+        all_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in FEATURE_DIRS]
+        # train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in FEATURE_DIRS if feature_dir != test_feature_dir]
+        train_video_ids = [video_id for video_id in all_video_ids if video_id != test_video_id]
         
-        print("Test video ID:", test_video_id)
-        print("Training video ID:")
+        print("Test video ID (unseen):", test_video_id)
+        print("Training video IDs (seen):")
         print(train_video_ids)
+        print()
+        print("All video IDs (unseen + seen):")
+        print(all_video_ids)
         print()
         
         # Split train and test feature directories
