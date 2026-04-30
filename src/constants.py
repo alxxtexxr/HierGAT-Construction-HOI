@@ -31,6 +31,7 @@ ACTION_CLASSES = [
     'inspect',          # 16
     'no interaction',   # 17
 ]
+
 NEW_ACTION_CLASSES = [
     # rebar
     'tie',              # 0
@@ -60,6 +61,38 @@ VIS_ACTION_CLASSES = [
     # all
     'inspect',          # 6
     'no interaction',   # 7
+]
+
+NEW_ACTION_CLASSES_V2 = [
+    # rebar
+    'erect',            # 0
+    'prepare_rebar',    # 1
+
+    # equipment         
+    'use',              # 2
+    'carry',            # 3
+
+    # all
+    'inspect',          # 4
+    
+    # replaced
+    'tie',              # 5 -> 1
+    'transport',        # 6 -> 3
+    
+    # removed
+    'no interaction',   # 7
+]
+VIS_ACTION_CLASSES_V2 = [
+    # rebar
+    'erect',            # 0
+    'prepare',          # 1
+
+    # equipment         
+    'use',              # 2
+    'carry',            # 3
+
+    # all
+    'inspect',          # 4
 ]
 
 FEATURE_DIRS = [
