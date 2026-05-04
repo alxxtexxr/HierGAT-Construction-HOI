@@ -35,7 +35,7 @@ from sklearn.metrics import confusion_matrix
 
 from predict import match_shape, match_att_shape
 from src.constants import (
-    ACTION_CLASSES,
+    ACTION_CLASSES_V2,
     NEW_ACTION_CLASSES_V2,
     VIS_ACTION_CLASSES_V2,
     FEATURE_DIRS,
@@ -86,31 +86,10 @@ def main(
     # Determine test feature directories for k-fold
     feature_dirs_df = get_feature_dirs_df(
         FEATURE_DIRS,
-        ACTION_CLASSES,
+        ACTION_CLASSES_V2,
         NEW_ACTION_CLASSES_V2,
     )
-    
-    print("Action label counts after replacement:")
-    print(feature_dirs_df['action_label'].value_counts().sort_index())
-    print("Total:", len(feature_dirs_df))
-    print()
-    
-    REPLACE_ACTION_MAP = {
-        'transport': 'carry',
-        'tie': 'prepare_rebar',
-        'no interaction': None,
-    }
-    replace_action_label_map = {
-        NEW_ACTION_CLASSES_V2.index(s): NEW_ACTION_CLASSES_V2.index(t) if t else None 
-        for s, t in REPLACE_ACTION_MAP.items()
-    }
-    feature_dirs_df['action_label'] = feature_dirs_df['action_label'].replace(replace_action_label_map)
     feature_dirs_df = feature_dirs_df.dropna(subset=['action_label'])
-    
-    print("Action label counts after replacement:")
-    print(feature_dirs_df['action_label'].value_counts().sort_index())
-    print("Total:", len(feature_dirs_df))
-    print()
     
     feature_dir_counts = (
         feature_dirs_df["base_dir"].value_counts().sort_values()
@@ -183,7 +162,7 @@ def main(
         # Create data dataframe
         df = create_data_df(
             train_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES,
+            ACTION_CLASSES_V2,
             NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
         )
 
@@ -267,9 +246,7 @@ def main(
                     val_group_df
                 ) + len(test_group_df)
             except:
-                import pdb
-
-                pdb.set_trace()
+                import pdb; pdb.set_trace()
 
             print("Training action label info:")
             print(train_group_df["action_label"].value_counts())
@@ -312,7 +289,7 @@ def main(
         val_data = val_df[data_cols].to_numpy().T.tolist()
         test_data = create_data(
             test_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES,
+            ACTION_CLASSES_V2,
             NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
         )
 
