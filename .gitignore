@@ -5,6 +5,7 @@ eval/
 logs/
 outputs_hiergat/
 predict_results/
+outputs/
 !conf/data/
 *.old.*
 *.tmp.*
