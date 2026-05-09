@@ -1,27 +1,12 @@
-import argparse
 import re
 from pathlib import Path
 
+import fire
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-
-ACTION_CLASSES_V2 = [
-    "erect",
-    "prepare",
-    "use",
-    "carry",
-    "inspect",
-]
-
-VIS_ACTION_CLASSES_V2 = [
-    "erect",
-    "prepare",
-    "use",
-    "carry",
-    "inspect",
-]
+from src.constants import VIS_ACTION_CLASSES_V2
 
 
 def parse_log_file(log_path: str):
@@ -124,28 +109,19 @@ def plot_confusion_matrix(
     plt.close(fig)
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Visualize confusion matrices from training log"
-    )
-    parser.add_argument("log_path", type=str, help="Path to the training log file")
-    parser.add_argument(
-        "--output_dir",
-        type=str,
-        default=None,
-        help="Output directory (default: visualizations/confusion_matrices/<log_name>)",
-    )
-    args = parser.parse_args()
-
-    log_path = Path(args.log_path)
+def main(
+    log_path: str,
+    output_dir: str = None,
+):
+    log_path = Path(log_path)
     if not log_path.exists():
         print(f"Error: Log file not found: {log_path}")
         return
 
     log_name = log_path.stem
 
-    if args.output_dir:
-        output_dir = Path(args.output_dir)
+    if output_dir:
+        output_dir = Path(output_dir)
     else:
         output_dir = Path("visualizations") / "confusion_matrices" / log_name
 
@@ -170,4 +146,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    fire.Fire(main)
