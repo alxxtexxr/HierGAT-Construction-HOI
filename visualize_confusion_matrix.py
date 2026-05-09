@@ -115,7 +115,7 @@ def plot_confusion_matrix(
                     color=text_color,
                 )
 
-    ax.set_xlabel("Predicted", fontsize=12)
+    ax.set_xlabel("Prediction", fontsize=12)
     ax.set_ylabel("Ground Truth", fontsize=12)
     ax.set_title(f"Confusion Matrix - Fold {fold_num}", fontsize=14, pad=10)
 
@@ -133,7 +133,7 @@ def main():
         "--output_dir",
         type=str,
         default=None,
-        help="Output directory (default: outputs/confusion_matrices/<log_name>)",
+        help="Output directory (default: visualizations/confusion_matrices/<log_name>)",
     )
     args = parser.parse_args()
 
@@ -147,7 +147,7 @@ def main():
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:
-        output_dir = Path("outputs") / "confusion_matrices" / log_name
+        output_dir = Path("visualizations") / "confusion_matrices" / log_name
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -160,7 +160,7 @@ def main():
         test_video_id = fold["test_video_id"]
         cm = fold["confusion_matrix"]
 
-        filename = f"fold_{fold_num:02d}_{test_video_id}_confusion_matrix.png"
+        filename = f"fold{fold_num:02d}_{test_video_id}_confusion_matrix.png"
         output_path = output_dir / filename
 
         plot_confusion_matrix(cm, VIS_ACTION_CLASSES_V2, str(output_path), fold_num)

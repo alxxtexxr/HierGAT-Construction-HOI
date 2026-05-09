@@ -294,9 +294,9 @@ def main(
                     color=text_color,
                 )
 
-    ax.set_xlabel("Predicted", fontsize=12)
+    ax.set_xlabel("Prediction", fontsize=12)
     ax.set_ylabel("Ground Truth", fontsize=12)
-    ax.set_title(f"Confusion Matrix - Fold {fold_number} ({video_id})", fontsize=14, pad=10)
+    ax.set_title(f"Confusion Matrix - Fold {fold_number}", fontsize=14, pad=10)
 
     plt.tight_layout()
     plt.savefig(f"{eval_dir}/confusion_matrix.png", dpi=150, bbox_inches="tight")
