@@ -101,8 +101,9 @@ def main(
     scaling_strategy = cfg.data.scaling_strategy
     downsampling = cfg.data.downsampling
 
-    eval_name = f"{timestamp}_fold{fold_number:02d}_{video_id}"
-    eval_dir = f"{os.getcwd()}/eval/{eval_name}"
+    checkpoint_name = checkpoint_path.stem
+    checkpoint_base = re.sub(r"_fold\d+$", "", checkpoint_name)
+    eval_dir = f"{os.getcwd()}/eval/{checkpoint_base}/fold{fold_number:02d}/{video_id}"
     os.makedirs(eval_dir, exist_ok=True)
     print(f"Eval directory: {eval_dir}")
     print()
