@@ -3,6 +3,7 @@ from pathlib import Path
 
 import fire
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import numpy as np
 import seaborn as sns
 
@@ -49,22 +50,21 @@ def plot_confusion_matrix(
 ):
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    cm_max = cm.max()
-    if cm_max > 0:
-        cm_normalized = cm.astype(float) / cm_max
-    else:
-        cm_normalized = cm.astype(float)
+    cm_normalized = cm.astype(float) / cm.sum(axis=1)[:, np.newaxis]
+    cm_normalized = np.nan_to_num(cm_normalized)
 
     sns.heatmap(
-        cm,
+        cm_normalized,
         annot=False,
-        fmt="d",
+        fmt=".2f",
         cmap="Blues",
         xticklabels=action_classes,
         yticklabels=action_classes,
-        cbar_kws={"label": "Count"},
+        cbar_kws={"label": "Percentage", "format": mtick.PercentFormatter(xmax=1)},
         ax=ax,
         linewidths=0,
+        vmin=0,
+        vmax=1,
     )
 
     row_sums = cm.sum(axis=1)
@@ -89,10 +89,14 @@ def plot_confusion_matrix(
 
             if row_sum > 0:
                 percentage = (count / row_sum) * 100
+                if percentage == int(percentage):
+                    percentage_str = f"({int(percentage)}%)"
+                else:
+                    percentage_str = f"({percentage:.1f}%)"
                 ax.text(
                     j + 0.5,
                     i + 0.55,
-                    f"({percentage:.1f}%)",
+                    percentage_str,
                     ha="center",
                     va="center",
                     fontsize=8,
