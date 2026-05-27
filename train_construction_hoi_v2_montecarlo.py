@@ -49,7 +49,8 @@ def main(
     config_path="conf/config_construction_hoi.yaml",
     seed=42,
     k=10,
-    num_epochs=None,  # Default: number of epochs in configuration file
+    num_epochs=None,  # Default: number of epochs in configuration file = 10
+    batch_size=None,  # Default: batch size in configuration file = 32
 ):
     # Set random seed
     random.seed(seed)
@@ -68,6 +69,9 @@ def main(
 
     if num_epochs is not None:
         cfg.models.optimization.epochs = num_epochs
+    
+    if batch_size is not None:
+        cfg.models.optimization.batch_size = batch_size
 
     torch.set_num_threads(cfg.resources.num_threads)
     model_name, model_input_type = (
