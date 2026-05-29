@@ -43,6 +43,7 @@ def main(
     checkpoint: str,
     config_path: str = "conf/config_construction_hoi.yaml",
     datasets: str = None,
+    exclude_video_ids: str = None,
 ):
     checkpoint_path = Path(checkpoint)
     if not checkpoint_path.exists():
@@ -109,6 +110,17 @@ def main(
         datasets = [d.strip() for d in datasets.split(",")]
         print(f"Using {len(datasets)} user-provided dataset(s)")
     print(f"Total datasets: {len(datasets)}")
+
+    if exclude_video_ids is not None:
+        exclude_list = [e.strip() for e in exclude_video_ids.split(",")]
+        filtered = []
+        for d in datasets:
+            if not any(eid in d for eid in exclude_list):
+                filtered.append(d)
+            else:
+                print(f"  Excluded: {Path(d).parent.stem}")
+        datasets = filtered
+        print(f"After exclusion: {len(datasets)} datasets")
     print()
 
     eval_dir = f"{os.getcwd()}/eval/{checkpoint_base}/fold{fold_number:02d}/aggregated_n{len(datasets)}"
@@ -227,13 +239,14 @@ def main(
             outputs += output
             targets += target
 
-        all_outputs.append(outputs[0])
-        all_targets.append(targets[0])
+        all_outputs.append(outputs[0].cpu())
+        all_targets.append(targets[0].cpu())
         datasets_processed.append(dataset)
 
         print(f"  Completed: {video_id}")
         del test_data, test_loader, outputs, targets
         gc.collect()
+        torch.cuda.empty_cache()
 
     print(f"\n{'='*64}")
     print("Aggregation Summary")
