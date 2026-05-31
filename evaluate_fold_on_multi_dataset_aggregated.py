@@ -154,6 +154,8 @@ def main(
     datasets_processed = []
     datasets_skipped = 0
     datasets_errors = 0
+    per_dataset_metrics = {}
+    ticklabels = VIS_ACTION_CLASSES_V2
 
     for i, dataset in enumerate(datasets, 1):
         dataset_path = Path(dataset)
@@ -242,6 +244,18 @@ def main(
         all_outputs.append(outputs[0].cpu())
         all_targets.append(targets[0].cpu())
         datasets_processed.append(dataset)
+
+        y_pred_ds = torch.argmax(outputs[0], dim=1).cpu().numpy()
+        y_true_ds = targets[0].squeeze(-1).mode(dim=1).values.cpu().numpy()
+
+        per_dataset_metrics[video_id] = {
+            "sample_count": int(len(y_true_ds)),
+            "accuracy": float(accuracy_score(y_true_ds, y_pred_ds)),
+            "f1_score": float(f1_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
+            "precision": float(precision_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
+            "recall": float(recall_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
+            "confusion_matrix": confusion_matrix(y_true_ds, y_pred_ds, labels=list(range(len(ticklabels)))).tolist(),
+        }
 
         print(f"  Completed: {video_id}")
         del test_data, test_loader, outputs, targets
@@ -368,17 +382,20 @@ def main(
         "checkpoint": str(checkpoint_path),
         "timestamp": timestamp,
         "fold": fold_number,
-        "datasets_evaluated": datasets_processed,
         "total_datasets": len(datasets),
         "datasets_processed": len(datasets_processed),
         "datasets_skipped": datasets_skipped,
+        "datasets_evaluated": datasets_processed,
         "total_samples": total_samples,
-        "accuracy": acc,
-        "f1_score": f1,
-        "precision": precision,
-        "recall": recall,
-        "confusion_matrix": cm.tolist(),
         "class_labels": VIS_ACTION_CLASSES_V2,
+        "aggregated_metrics": {
+            "accuracy": acc,
+            "f1_score": f1,
+            "precision": precision,
+            "recall": recall,
+            "confusion_matrix": cm.tolist(),
+        },
+        "per_dataset_metrics": per_dataset_metrics,
     }
 
     with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
