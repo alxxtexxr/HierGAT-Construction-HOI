@@ -1,5 +1,7 @@
 # HierGAT Model for Human-Object Interaction (HOI) Detection in Construction Sites
 
+https://github.com/user-attachments/assets/e50d8061-f5ad-4bcd-bf3b-2ad013e10e81
+
 Original HierGAT repository: https://github.com/wjx1198/HierGAT
 
 ## Setup
