@@ -1,0 +1,7 @@
+defaults:
+  - config_construction_hoi
+  - _self_
+
+models:
+  parameters:
+    message_objects_to_human: false
