@@ -12,7 +12,7 @@ from pyrutils.torch.forwarders import basic_forward
 def train(model, train_loader, optimizer, criterion, epochs, device, loss_names, clip_gradient_at=0.0,
           fetch_model_data=single_input_single_output, feed_model_data=basic_forward,
           val_loader=None, initial_epoch=1, mtll_model=None, print_raw_losses=False,
-          num_main_losses=None, **kwargs):
+          num_main_losses=None, early_stopping_patience=None, min_epochs=10, **kwargs):
     """General training function to train a PyTorch model.
 
     If validation data is not given, the returned checkpoint is the one obtained after training the model for the
@@ -34,6 +34,10 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
         fetch_model_data - Function to fetch the input and output tensors for the model.
         feed_model_data - Function to feed the input tensors to the model.
         val_loader - Batch generator for model validation.
+        early_stopping_patience - Stop training if validation loss doesn't improve for this many epochs.
+            If None, no early stopping is applied (fixed epochs). Requires val_loader to be provided.
+        min_epochs - Minimum number of epochs before early stopping can activate. Prevents stopping
+            during noisy early training. Default: 10.
         **kwargs - Any extra parameters to be passed during training.
     Returns:
         A dictionary containing the history of train losses, the model's weights and associated epoch, and if
@@ -47,6 +51,18 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
     checkpoint = {}
     train_losses, val_losses, train_raw_losses, val_raw_losses = [], [], [], []
     val_loss = float('Inf')
+    epochs_without_improvement = 0
+    stopped_early = False
+    stopped_epoch = epochs + initial_epoch - 1
+
+    # Validate early stopping configuration
+    if early_stopping_patience is not None and val_loader is None:
+        print('WARNING: early_stopping_patience is set but no val_loader provided. Early stopping will be disabled.')
+        early_stopping_patience = None
+    
+    if early_stopping_patience is not None:
+        print(f'Early stopping enabled: patience={early_stopping_patience}, min_epochs={min_epochs}')
+    
     for epoch in range(initial_epoch, epochs + initial_epoch):
         # Train
         print(f'\nEpoch: [{epoch:4d}/{epochs + initial_epoch - 1:4d}]')
@@ -96,10 +112,27 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
                     writer.add_scalar('Loss/val/total', current_val_raw_loss, epoch)
             if current_val_loss < val_loss:
                 val_loss = current_val_loss
+                epochs_without_improvement = 0
                 checkpoint['epoch'] = epoch
                 checkpoint['model_state_dict'] = model.state_dict()
                 if mtll_model is not None:
                     checkpoint['mtll_model_state_dict'] = mtll_model.state_dict()
+            else:
+                epochs_without_improvement += 1
+            
+            # Early stopping check (only after min_epochs)
+            if (early_stopping_patience is not None and
+                epoch >= min_epochs and
+                epochs_without_improvement >= early_stopping_patience):
+                print(f'\nEarly stopping triggered at epoch {epoch}')
+                print(f'  No improvement for {epochs_without_improvement} epochs (patience={early_stopping_patience})')
+                stopped_early = True
+                stopped_epoch = epoch
+                break
+            
+            # Reset counter during min_epochs window so early stopping only counts after min_epochs
+            if epoch < min_epochs:
+                epochs_without_improvement = 0
         else:
             checkpoint['epoch'] = epoch
             checkpoint['model_state_dict'] = model.state_dict()
@@ -110,6 +143,9 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
     checkpoint['val_losses'] = val_losses
     checkpoint['train_raw_losses'] = train_raw_losses
     checkpoint['val_raw_losses'] = val_raw_losses
+    checkpoint['stopped_early'] = stopped_early
+    checkpoint['stopped_epoch'] = stopped_epoch
+    checkpoint['epochs_without_improvement'] = epochs_without_improvement
     if writer is not None:
         writer.close()
     return checkpoint

@@ -49,8 +49,11 @@ def main(
     config_path="conf/config_construction_hoi.yaml",
     seed=42,
     k=10,
-    num_epochs=None,  # Default: number of epochs in configuration file = 10
-    batch_size=None,  # Default: batch size in configuration file = 32
+    num_epochs=None,                # DEFAULT: Number of epochs in the configuration file (10).
+                                    # With early stopping enabled, this is the maximum number of epochs
+    batch_size=None,                # DEFAULT: Batch size in the configuration file (32)
+    min_epochs=10,                  # Minimum epochs before early stopping can activate
+    early_stopping_patience=None,   # Early stopping patience (None = disabled)
 ):
     # Set random seed
     random.seed(seed)
@@ -253,8 +256,11 @@ def main(
                 ) and len(df[base_dir_cond]) == len(train_group_df) + len(
                     val_group_df
                 ) + len(test_group_df)
-            except:
-                import pdb; pdb.set_trace()
+            except AssertionError:
+                raise AssertionError(
+                    f'Invalid split sizes: train={len(train_group_df)}, val={len(val_group_df)}, '
+                    f'test={len(test_group_df)}, total={len(df[base_dir_cond])}'
+                )
 
             print("Training action label info:")
             print(train_group_df["action_label"].value_counts())
@@ -398,6 +404,8 @@ def main(
             num_main_losses=num_main_losses,
             tensorboard_log_dir=tensorboard_log_dir,
             checkpoint_name=checkpoint_name,
+            early_stopping_patience=early_stopping_patience,
+            min_epochs=min_epochs,
         )
 
         print()
