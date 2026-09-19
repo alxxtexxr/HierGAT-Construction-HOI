@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -36,8 +36,8 @@ def budget_loss(input, target, ignore_value=-1, reduction='mean'):
     return criterion
 
 
-def multi_task_loss(input: list, target: list, loss_functions: list, weight: list = None,
-                    ignore_value: Union[int, float] = -1, reduction: str = 'mean'):
+def multi_task_loss(input: list, target: list, loss_functions: list, weight: Optional[list] = None,
+                   ignore_value = -1, reduction: str = 'mean'):
     """Loss function for models with multiple losses."""
     if weight is None:
         weight = [1.0] * len(input)

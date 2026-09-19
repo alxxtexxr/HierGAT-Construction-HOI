@@ -1,4 +1,5 @@
 import itertools
+import os
 from typing import Optional
 from pathlib import Path
 
@@ -403,7 +404,11 @@ def create_data_loader(
     scaling_strategy: Optional[str] = None, 
     scalers: Optional[dict] = None, 
     sigma: float = 0.0,
-    downsampling: int = 1, 
+    downsampling: int = 1,
+    num_workers: Optional[int] = None,
+    pin_memory: bool = False,
+    persistent_workers: bool = True,
+    prefetch_factor: int = 2,
 ):
     x, y = assemble_mphoi_tensors(
         human_features_list,
@@ -422,7 +427,26 @@ def create_data_loader(
     x = [np.nan_to_num(ix, copy=False, nan=0.0) for ix in x]
     x, y = numpy_to_torch(*x), numpy_to_torch(*y)
     dataset = TensorDataset(*(x + y))
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=0,
-                             pin_memory=False, drop_last=False)
+    
+    # Auto-detect available CPU cores if num_workers not specified
+    if num_workers is None:
+        num_workers = os.cpu_count() or 4
+    
+    # Optimized DataLoader settings for faster training
+    # - num_workers: Use multiple CPU cores for parallel data loading
+    # - pin_memory: Faster CPU→GPU transfer by pinning memory pages
+    # - persistent_workers: Keep workers alive between epochs (avoids re-spawning overhead)
+    # - prefetch_factor: Pre-fetch batches in background (default=2, increase for slow I/O)
+    data_loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers if num_workers > 0 else False,
+        prefetch_factor=prefetch_factor if num_workers > 0 else None,
+        drop_last=False,
+    )
+    print(f'DataLoader: num_workers={num_workers}, pin_memory={pin_memory}')
     segmentations = None
     return data_loader, scalers, segmentations

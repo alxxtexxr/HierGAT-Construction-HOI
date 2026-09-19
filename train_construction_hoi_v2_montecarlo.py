@@ -54,6 +54,7 @@ def main(
     batch_size=None,                # DEFAULT: Batch size in the configuration file (32)
     min_epochs=10,                  # Minimum epochs before early stopping can activate
     early_stopping_patience=None,   # Early stopping patience (None = disabled)
+    num_workers=4,                  # Number of data loading workers
 ):
     # Set random seed
     random.seed(seed)
@@ -316,6 +317,7 @@ def main(
             scaling_strategy=scaling_strategy,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         val_loader, _, _ = create_data_loader(
             *val_data,
@@ -325,6 +327,7 @@ def main(
             scalers=scalers,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         test_loader, _, _ = create_data_loader(
             *test_data,
@@ -334,6 +337,7 @@ def main(
             scalers=scalers,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         input_size = input_size_from_data_loader(
             train_loader, model_name, model_input_type
