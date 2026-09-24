@@ -12,4 +12,6 @@ visualizations/
 *.log.*
 *.local.*
 *_output.*
+*.md
+!README.md
 Datasheet Info.ipynb
