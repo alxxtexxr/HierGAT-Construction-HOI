@@ -426,6 +426,11 @@ def main(
                 include_timestamp=False,
             )
 
+        # Load the BEST model weights from checkpoint (based on validation loss)
+        # The train() function saves the best model in checkpoint['model_state_dict']
+        print(f"\nLoading best model from epoch {checkpoint.get('epoch', 'N/A')}...")
+        model.load_state_dict(checkpoint['model_state_dict'])
+
         # Validation Evaluation
         printh("Validation Evaluation", 96)
         print("Test video ID:", test_video_id)
