@@ -110,17 +110,17 @@ def main(
     # NEW - Monte Carlo mechanism: Randomly sample k feature directories as test feature directories
     kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k)
 
-    # Validate and resolve selected_folds
+    # Validate and resolve selected_folds (1-based: fold numbers from 1 to k)
     if selected_folds is not None:
         if not selected_folds:
             raise ValueError("selected_folds must not be empty.")
-        invalid_folds = [f for f in selected_folds if f < 0 or f >= k]
+        invalid_folds = [f for f in selected_folds if f < 1 or f > k]
         if invalid_folds:
             raise ValueError(
-                f"Invalid fold indices {invalid_folds}. Valid range: 0 to {k - 1}."
+                f"Invalid fold numbers {invalid_folds}. Valid range: 1 to {k}."
             )
     else:
-        selected_folds = list(range(k))
+        selected_folds = list(range(1, k + 1))
 
     # Create evaluation directory
     run_name = (
@@ -132,22 +132,29 @@ def main(
         f"{datetime.now().strftime('%y%m%d%H%M%S')}"
     )
     eval_dir = f"{os.getcwd()}/eval/{run_name}"
-    os.makedirs(eval_dir, exist_ok=True)
+    try:
+        os.makedirs(eval_dir, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError(f"Failed to create eval directory '{eval_dir}': {e}") from e
 
     # Iterate through selected folds
     acc_list, f1_list, precision_list, recall_list, cm_list = [], [], [], [], []
     val_acc_list, val_f1_list, val_precision_list, val_recall_list, val_cm_list = [], [], [], [], []
     best_train_loss_list, best_val_loss_list = [], []
-    for fold_idx in selected_folds:
+    for fold_num in selected_folds:
+        fold_idx = fold_num - 1  # Convert 1-based to 0-based index
         test_feature_dir = kfold_test_feature_dirs[fold_idx]
-        printh(f"Fold {fold_idx + 1}: {test_feature_dir}", 128)
+        printh(f"Fold {fold_num}: {test_feature_dir}", 128)
 
         # Create log directory
         root_log_dir = f"{os.getcwd()}/outputs_hiergat/construction_hoi"
-        fold_str = str(fold_idx + 1).zfill(len(str(k)))
+        fold_str = str(fold_num).zfill(len(str(k)))
         checkpoint_name = f"{run_name}_fold{fold_str}"
         log_dir = f"{root_log_dir}/{checkpoint_name}"
-        os.makedirs(log_dir, exist_ok=True)
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create log directory '{log_dir}': {e}") from e
 
         print("Log directory:", log_dir)
         print()
@@ -207,7 +214,13 @@ def main(
             min_fid = 0
             max_fid = group_df["end_fid"].max()
             duration = max_fid - min_fid
-            val_duration = int(duration * val_fraction)
+            try:
+                val_duration = int(duration * val_fraction)
+            except (TypeError, ValueError) as e:
+                raise RuntimeError(
+                    f"Failed to compute validation duration from duration={duration} "
+                    f"and val_fraction={val_fraction}: {e}"
+                ) from e
 
             # Determine validation and testing FID ranges
             assert duration // 2 >= val_duration + val_duration, (
@@ -277,7 +290,7 @@ def main(
                 raise AssertionError(
                     f'Invalid split sizes: train={len(train_group_df)}, val={len(val_group_df)}, '
                     f'test={len(test_group_df)}, total={len(df[base_dir_cond])}'
-                )
+                ) from None
 
             print("Training action label info:")
             print(train_group_df["action_label"].value_counts())
@@ -484,7 +497,7 @@ def main(
                 output = output[-num_main_losses:]
                 target = target[-num_main_losses:]
             if downsampling > 1:
-                for i, (out, tgt) in enumerate(zip(output, target)):
+                for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
                     if out.ndim != 4:
                         raise RuntimeError(
                             f"Number of dimensions for output is {out.ndim}"
@@ -521,11 +534,6 @@ def main(
 
         # Plot confusion matrix
         ticklabels = NEW_ACTION_CLASSES_V2
-        if "new_action_classes" in globals() and isinstance(
-            new_action_classes, (list, tuple)
-        ):  # type: ignore
-            val_y_true = [ticklabels.index(new_action_classes[y]) for y in val_y_true]  # type: ignore
-            val_y_pred = [ticklabels.index(new_action_classes[y]) for y in val_y_pred]  # type: ignore
 
         val_cm = confusion_matrix(val_y_true, val_y_pred, labels=list(range(len(ticklabels))))
 
@@ -548,7 +556,10 @@ def main(
 
         # Save confusion matrix
         val_cm_dir = f"{eval_dir}/val_cm"
-        os.makedirs(val_cm_dir, exist_ok=True)
+        try:
+            os.makedirs(val_cm_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create val_cm directory '{val_cm_dir}': {e}") from e
         plt.savefig(f"{val_cm_dir}/fold{fold_str}.png")
         plt.close()
 
@@ -580,7 +591,7 @@ def main(
                 output = output[-num_main_losses:]
                 target = target[-num_main_losses:]
             if downsampling > 1:
-                for i, (out, tgt) in enumerate(zip(output, target)):
+                for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
                     if out.ndim != 4:
                         raise RuntimeError(
                             f"Number of dimensions for output is {out.ndim}"
@@ -617,11 +628,6 @@ def main(
 
         # Plot confusion matrix
         ticklabels = NEW_ACTION_CLASSES_V2
-        if "new_action_classes" in globals() and isinstance(
-            new_action_classes, (list, tuple)
-        ):  # type: ignore
-            y_true = [ticklabels.index(new_action_classes[y]) for y in y_true]  # type: ignore
-            y_pred = [ticklabels.index(new_action_classes[y]) for y in y_pred]  # type: ignore
 
         cm = confusion_matrix(y_true, y_pred, labels=list(range(len(ticklabels))))
 
@@ -644,7 +650,10 @@ def main(
 
         # Save confusion matrix
         cm_dir = f"{eval_dir}/cm"
-        os.makedirs(cm_dir, exist_ok=True)
+        try:
+            os.makedirs(cm_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create cm directory '{cm_dir}': {e}") from e
         plt.savefig(f"{cm_dir}/fold{fold_str}.png")
         plt.close()
 
@@ -761,8 +770,11 @@ def main(
         },
     }
 
-    with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=4)
+    try:
+        with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=4)
+    except OSError as e:
+        raise RuntimeError(f"Failed to save metrics to '{eval_dir}/metrics.json': {e}") from e
 
 
 if __name__ == "__main__":
