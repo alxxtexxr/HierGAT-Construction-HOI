@@ -137,6 +137,7 @@ def main(
     # Iterate through selected folds
     acc_list, f1_list, precision_list, recall_list, cm_list = [], [], [], [], []
     val_acc_list, val_f1_list, val_precision_list, val_recall_list, val_cm_list = [], [], [], [], []
+    best_train_loss_list, best_val_loss_list = [], []
     for fold_idx in selected_folds:
         test_feature_dir = kfold_test_feature_dirs[fold_idx]
         printh(f"Fold {fold_idx + 1}: {test_feature_dir}", 128)
@@ -443,8 +444,24 @@ def main(
 
         # Load the BEST model weights from checkpoint (based on validation loss)
         # The train() function saves the best model in checkpoint['model_state_dict']
-        print(f"\nLoading best model from epoch {checkpoint.get('epoch', 'N/A')}...")
+        best_epoch = checkpoint.get('epoch', 0)
+        print(f"\nLoading best model from epoch {best_epoch}...")
         model.load_state_dict(checkpoint['model_state_dict'])
+
+        # Extract best epoch losses from checkpoint
+        best_epoch_idx = best_epoch - 1  # 0-indexed
+        if checkpoint['train_losses'] and best_epoch_idx < len(checkpoint['train_losses']):
+            best_train_loss = checkpoint['train_losses'][best_epoch_idx][0]
+        else:
+            best_train_loss = checkpoint['train_losses'][-1][0]
+        if checkpoint['val_losses'] and best_epoch_idx < len(checkpoint['val_losses']):
+            best_val_loss = checkpoint['val_losses'][best_epoch_idx][0]
+        else:
+            best_val_loss = checkpoint['val_losses'][-1][0]
+        best_train_loss_list.append(best_train_loss)
+        best_val_loss_list.append(best_val_loss)
+        print(f"Best epoch train loss: {best_train_loss:.4f}")
+        print(f"Best epoch val loss:   {best_val_loss:.4f}")
 
         # Validation Evaluation
         printh("Validation Evaluation", 96)
@@ -658,9 +675,19 @@ def main(
     val_precision_mean, val_precision_std = np.mean(val_precision_list), np.std(val_precision_list)
     val_recall_mean, val_recall_std = np.mean(val_recall_list), np.std(val_recall_list)
 
+    best_train_loss_mean, best_train_loss_std = np.mean(best_train_loss_list), np.std(best_train_loss_list)
+    best_val_loss_mean, best_val_loss_std = np.mean(best_val_loss_list), np.std(best_val_loss_list)
+
+    print("\n" + "=" * 64)
+    print("Training All-Fold Results Summary")
+    print("=" * 64)
+    print(f"Loss:      {best_train_loss_mean:.4f} ± {best_train_loss_std:.4f}")
+    print("=" * 64)
+
     print("\n" + "=" * 64)
     print("Validation All-Fold Results Summary")
     print("=" * 64)
+    print(f"Loss:      {best_val_loss_mean:.4f} ± {best_val_loss_std:.4f}")
     print(f"Accuracy:  {val_acc_mean:.4f} ± {val_acc_std:.4f}")
     print(f"F1 Score:  {val_f1_mean:.4f} ± {val_f1_std:.4f}")
     print(f"Precision: {val_precision_mean:.4f} ± {val_precision_std:.4f}")
