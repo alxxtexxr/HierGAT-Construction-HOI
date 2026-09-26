@@ -49,6 +49,8 @@ def main(
     config_path="conf/config_construction_hoi.yaml",
     seed=42,
     k=10,
+    selected_folds=None,           # List of fold indices to run (0-based). None = run all k folds.
+                                    # Example: selected_folds=[0, 2, 5] to run only folds 0, 2, and 5.
     num_epochs=None,                # DEFAULT: Number of epochs in the configuration file (10).
                                     # With early stopping enabled, this is the maximum number of epochs
     batch_size=None,                # DEFAULT: Batch size in the configuration file (32)
@@ -107,7 +109,19 @@ def main(
     
     # NEW - Monte Carlo mechanism: Randomly sample k feature directories as test feature directories
     kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k)
-    
+
+    # Validate and resolve selected_folds
+    if selected_folds is not None:
+        if not selected_folds:
+            raise ValueError("selected_folds must not be empty.")
+        invalid_folds = [f for f in selected_folds if f < 0 or f >= k]
+        if invalid_folds:
+            raise ValueError(
+                f"Invalid fold indices {invalid_folds}. Valid range: 0 to {k - 1}."
+            )
+    else:
+        selected_folds = list(range(k))
+
     # Create evaluation directory
     run_name = (
         f"hs{cfg.models.parameters.hidden_size}_"
@@ -120,15 +134,16 @@ def main(
     eval_dir = f"{os.getcwd()}/eval/{run_name}"
     os.makedirs(eval_dir, exist_ok=True)
 
-    # Iterate through k-fold
+    # Iterate through selected folds
     acc_list, f1_list, precision_list, recall_list, cm_list = [], [], [], [], []
     val_acc_list, val_f1_list, val_precision_list, val_recall_list, val_cm_list = [], [], [], [], []
-    for fold, test_feature_dir in enumerate(kfold_test_feature_dirs):
-        printh(f"Fold {fold + 1}: {test_feature_dir}", 128)
+    for fold_idx in selected_folds:
+        test_feature_dir = kfold_test_feature_dirs[fold_idx]
+        printh(f"Fold {fold_idx + 1}: {test_feature_dir}", 128)
 
         # Create log directory
         root_log_dir = f"{os.getcwd()}/outputs_hiergat/construction_hoi"
-        fold_str = str(fold + 1).zfill(len(str(k)))
+        fold_str = str(fold_idx + 1).zfill(len(str(k)))
         checkpoint_name = f"{run_name}_fold{fold_str}"
         log_dir = f"{root_log_dir}/{checkpoint_name}"
         os.makedirs(log_dir, exist_ok=True)
