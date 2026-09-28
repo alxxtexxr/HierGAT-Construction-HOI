@@ -1,0 +1,7 @@
+defaults:
+  - config_construction_hoi
+  - _self_
+
+models:
+  optimization:
+    learning_rate: 1.5e-3
