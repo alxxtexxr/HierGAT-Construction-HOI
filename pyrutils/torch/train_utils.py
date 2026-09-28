@@ -75,11 +75,12 @@ def _validate_with_metric(model, val_loader, criterion, device, loss_names,
     # Compute metric
     all_preds = np.array(all_preds)
     all_targets = np.array(all_targets)
-    # Always compute per-class F1 (used by quality gate)
+    # Always compute weighted F1 and per-class F1
+    weighted_f1 = float(f1_score(all_targets, all_preds, average="weighted", zero_division="warn"))
     per_class_f1s = f1_score(all_targets, all_preds, average=None, zero_division="warn")  # type: ignore[arg-type]
     min_per_class_f1 = float(np.min(per_class_f1s))
     if metric_name == "val_f1":
-        metric_value = float(f1_score(all_targets, all_preds, average="weighted", zero_division="warn"))
+        metric_value = weighted_f1
     elif metric_name == "val_accuracy":
         metric_value = float(accuracy_score(all_targets, all_preds))
     elif metric_name == "val_min_per_class_f1":
@@ -87,7 +88,7 @@ def _validate_with_metric(model, val_loader, criterion, device, loss_names,
     else:
         raise ValueError(f"Unknown metric_name: {metric_name}")
 
-    return total_test_loss, test_losses, total_test_raw_loss, test_raw_losses, metric_value, min_per_class_f1
+    return total_test_loss, test_losses, total_test_raw_loss, test_raw_losses, metric_value, min_per_class_f1, weighted_f1
 
 
 def train(model, train_loader, optimizer, criterion, epochs, device, loss_names, clip_gradient_at=0.0,
@@ -176,8 +177,10 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
         print(f'LR scheduler enabled: {scheduler.__class__.__name__}')
 
     for epoch in range(initial_epoch, epochs + initial_epoch):
+        # Print current LR at start of epoch
+        current_lr = optimizer.param_groups[0]['lr']
         # Train
-        print(f'\nEpoch: [{epoch:4d}/{epochs + initial_epoch - 1:4d}]')
+        print(f'\nEpoch: [{epoch:4d}/{epochs + initial_epoch - 1:4d}]  LR: {current_lr:.6f}')
         train_single_epoch(model, data_loader=train_loader, optimizer=optimizer, criterion=criterion,
                            device=device, loss_names=loss_names, clip_gradient_at=clip_gradient_at,
                            fetch_model_data=fetch_model_data, feed_model_data=feed_model_data, log_interval=25,
@@ -215,7 +218,7 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
                 current_metric = current_val_loss
             else:
                 # Single pass: compute loss + metric together (avoid two separate passes)
-                current_val_loss, current_val_losses, current_val_raw_loss, current_val_raw_losses, current_metric, current_min_per_class_f1 = \
+                current_val_loss, current_val_losses, current_val_raw_loss, current_val_raw_losses, current_metric, current_min_per_class_f1, current_weighted_f1 = \
                     _validate_with_metric(
                         model, val_loader, criterion, device, loss_names,
                         fetch_model_data, feed_model_data,
@@ -223,7 +226,11 @@ def train(model, train_loader, optimizer, criterion, epochs, device, loss_names,
                         mtll_model=mtll_model, num_main_losses=num_main_losses, **kwargs,
                     )
                 _current_min_per_class_f1 = current_min_per_class_f1
-                print(f'  {early_stopping_metric}: {current_metric:.4f}')
+                # Always print val_loss, val_f1, and early stopping metric
+                print(f'  val_loss: {current_val_loss:.4f}')
+                print(f'  val_f1: {current_weighted_f1:.4f}')
+                if early_stopping_metric not in ('val_loss', 'val_f1'):
+                    print(f'  {early_stopping_metric}: {current_metric:.4f}')
                 if min_per_class_f1_thresh is not None:
                     print(f'  min_per_class_f1: {current_min_per_class_f1:.4f} (thresh={min_per_class_f1_thresh:.4f})')
             val_losses.append([current_val_loss, current_val_losses])
