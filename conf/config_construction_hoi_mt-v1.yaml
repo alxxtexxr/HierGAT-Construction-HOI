@@ -4,4 +4,4 @@ defaults:
 
 models:
   parameters:
-    message_segment: false
+    message_type: v1
