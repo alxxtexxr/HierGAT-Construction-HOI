@@ -1,5 +1,6 @@
 __pycache__/
-__trash__/
+.ruff_cache/
+__*__/
 data/
 eval/
 logs/
