@@ -35,9 +35,9 @@ from sklearn.metrics import confusion_matrix
 
 from predict import match_shape, match_att_shape
 from src.constants import (
-    ACTION_CLASSES,
-    NEW_ACTION_CLASSES,
-    VIS_ACTION_CLASSES,
+    ACTION_CLASSES_V2,
+    NEW_ACTION_CLASSES_V2,
+    VIS_ACTION_CLASSES_V2,
     FEATURE_DIRS,
 )
 from src.utils import printh, get_feature_dirs_df, create_data_df
@@ -49,7 +49,14 @@ def main(
     config_path="conf/config_construction_hoi.yaml",
     seed=42,
     k=10,
-    num_epochs=None,  # Default: number of epochs in configuration file
+    selected_folds=None,           # List of fold indices to run (0-based). None = run all k folds.
+                                    # Example: selected_folds=[0, 2, 5] to run only folds 0, 2, and 5.
+    num_epochs=None,                # DEFAULT: Number of epochs in the configuration file (10).
+                                    # With early stopping enabled, this is the maximum number of epochs
+    batch_size=None,                # DEFAULT: Batch size in the configuration file (32)
+    min_epochs=10,                  # Minimum epochs before early stopping can activate
+    early_stopping_patience=None,   # Early stopping patience (None = disabled)
+    num_workers=4,                  # Number of data loading workers
 ):
     # Set random seed
     random.seed(seed)
@@ -68,6 +75,9 @@ def main(
 
     if num_epochs is not None:
         cfg.models.optimization.epochs = num_epochs
+    
+    if batch_size is not None:
+        cfg.models.optimization.batch_size = batch_size
 
     torch.set_num_threads(cfg.resources.num_threads)
     model_name, model_input_type = (
@@ -86,14 +96,31 @@ def main(
     # Determine test feature directories for k-fold
     feature_dirs_df = get_feature_dirs_df(
         FEATURE_DIRS,
-        ACTION_CLASSES,
-        NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
+        ACTION_CLASSES_V2,
+        NEW_ACTION_CLASSES_V2,
     )
+    feature_dirs_df = feature_dirs_df.dropna(subset=['action_label'])
+    
     feature_dir_counts = (
         feature_dirs_df["base_dir"].value_counts().sort_values()
     )  # Count occurrences of each feature directory
     # and sort from lowest to highest
-    kfold_test_feature_dirs = feature_dir_counts.index[:k]
+    # kfold_test_feature_dirs = feature_dir_counts.index[:k] # OLD
+    
+    # NEW - Monte Carlo mechanism: Randomly sample k feature directories as test feature directories
+    kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k)
+
+    # Validate and resolve selected_folds (1-based: fold numbers from 1 to k)
+    if selected_folds is not None:
+        if not selected_folds:
+            raise ValueError("selected_folds must not be empty.")
+        invalid_folds = [f for f in selected_folds if f < 1 or f > k]
+        if invalid_folds:
+            raise ValueError(
+                f"Invalid fold numbers {invalid_folds}. Valid range: 1 to {k}."
+            )
+    else:
+        selected_folds = list(range(1, k + 1))
 
     # Create evaluation directory
     run_name = (
@@ -105,19 +132,29 @@ def main(
         f"{datetime.now().strftime('%y%m%d%H%M%S')}"
     )
     eval_dir = f"{os.getcwd()}/eval/{run_name}"
-    os.makedirs(eval_dir, exist_ok=True)
+    try:
+        os.makedirs(eval_dir, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError(f"Failed to create eval directory '{eval_dir}': {e}") from e
 
-    # Iterate through k-fold
+    # Iterate through selected folds
     acc_list, f1_list, precision_list, recall_list, cm_list = [], [], [], [], []
-    for fold, test_feature_dir in enumerate(kfold_test_feature_dirs):
-        printh(f"Fold {fold + 1}: {test_feature_dir}", 128)
+    val_acc_list, val_f1_list, val_precision_list, val_recall_list, val_cm_list = [], [], [], [], []
+    best_train_loss_list, best_val_loss_list = [], []
+    for fold_num in selected_folds:
+        fold_idx = fold_num - 1  # Convert 1-based to 0-based index
+        test_feature_dir = kfold_test_feature_dirs[fold_idx]
+        printh(f"Fold {fold_num}: {test_feature_dir}", 128)
 
         # Create log directory
         root_log_dir = f"{os.getcwd()}/outputs_hiergat/construction_hoi"
-        fold_str = str(fold + 1).zfill(len(str(k)))
+        fold_str = str(fold_num).zfill(len(str(k)))
         checkpoint_name = f"{run_name}_fold{fold_str}"
         log_dir = f"{root_log_dir}/{checkpoint_name}"
-        os.makedirs(log_dir, exist_ok=True)
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create log directory '{log_dir}': {e}") from e
 
         print("Log directory:", log_dir)
         print()
@@ -160,8 +197,8 @@ def main(
         # Create data dataframe
         df = create_data_df(
             train_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES,
-            NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
+            ACTION_CLASSES_V2,
+            NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
         )
 
         # Split train and validation feature data
@@ -177,7 +214,13 @@ def main(
             min_fid = 0
             max_fid = group_df["end_fid"].max()
             duration = max_fid - min_fid
-            val_duration = int(duration * val_fraction)
+            try:
+                val_duration = int(duration * val_fraction)
+            except (TypeError, ValueError) as e:
+                raise RuntimeError(
+                    f"Failed to compute validation duration from duration={duration} "
+                    f"and val_fraction={val_fraction}: {e}"
+                ) from e
 
             # Determine validation and testing FID ranges
             assert duration // 2 >= val_duration + val_duration, (
@@ -243,10 +286,11 @@ def main(
                 ) and len(df[base_dir_cond]) == len(train_group_df) + len(
                     val_group_df
                 ) + len(test_group_df)
-            except:
-                import pdb
-
-                pdb.set_trace()
+            except AssertionError:
+                raise AssertionError(
+                    f'Invalid split sizes: train={len(train_group_df)}, val={len(val_group_df)}, '
+                    f'test={len(test_group_df)}, total={len(df[base_dir_cond])}'
+                ) from None
 
             print("Training action label info:")
             print(train_group_df["action_label"].value_counts())
@@ -289,8 +333,8 @@ def main(
         val_data = val_df[data_cols].to_numpy().T.tolist()
         test_data = create_data(
             test_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES,
-            NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
+            ACTION_CLASSES_V2,
+            NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
         )
 
         # Create data loaders
@@ -302,6 +346,7 @@ def main(
             scaling_strategy=scaling_strategy,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         val_loader, _, _ = create_data_loader(
             *val_data,
@@ -311,6 +356,7 @@ def main(
             scalers=scalers,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         test_loader, _, _ = create_data_loader(
             *test_data,
@@ -320,6 +366,7 @@ def main(
             scalers=scalers,
             sigma=sigma,
             downsampling=downsampling,
+            num_workers=num_workers,
         )
         input_size = input_size_from_data_loader(
             train_loader, model_name, model_input_type
@@ -330,7 +377,7 @@ def main(
         model_creation_args = cfg.models.parameters
         model_creation_args = {**data_info, **model_creation_args}
         dataset_name = cfg.data.name
-        num_classes = len(NEW_ACTION_CLASSES)
+        num_classes = len(NEW_ACTION_CLASSES_V2)
         model_creation_args["num_classes"] = (num_classes, None)
         device = (
             "cuda" if torch.cuda.is_available() and cfg.resources.use_gpu else "cpu"
@@ -390,6 +437,8 @@ def main(
             num_main_losses=num_main_losses,
             tensorboard_log_dir=tensorboard_log_dir,
             checkpoint_name=checkpoint_name,
+            early_stopping_patience=early_stopping_patience,
+            min_epochs=min_epochs,
         )
 
         print()
@@ -406,14 +455,129 @@ def main(
                 include_timestamp=False,
             )
 
-        # Evaluation
-        printh("Evaluation", 96)
+        # Load the BEST model weights from checkpoint (based on validation loss)
+        # The train() function saves the best model in checkpoint['model_state_dict']
+        best_epoch = checkpoint.get('epoch', 0)
+        print(f"\nLoading best model from epoch {best_epoch}...")
+        model.load_state_dict(checkpoint['model_state_dict'])
+
+        # Extract best epoch losses from checkpoint
+        best_epoch_idx = best_epoch - 1  # 0-indexed
+        if checkpoint['train_losses'] and best_epoch_idx < len(checkpoint['train_losses']):
+            best_train_loss = checkpoint['train_losses'][best_epoch_idx][0]
+        else:
+            best_train_loss = checkpoint['train_losses'][-1][0]
+        if checkpoint['val_losses'] and best_epoch_idx < len(checkpoint['val_losses']):
+            best_val_loss = checkpoint['val_losses'][best_epoch_idx][0]
+        else:
+            best_val_loss = checkpoint['val_losses'][-1][0]
+        best_train_loss_list.append(best_train_loss)
+        best_val_loss_list.append(best_val_loss)
+        print(f"Best epoch train loss: {best_train_loss:.4f}")
+        print(f"Best epoch val loss:   {best_val_loss:.4f}")
+
+        # Validation Evaluation
+        printh("Validation Evaluation", 96)
         print("Test video ID:", test_video_id)
         print()
 
         model.eval()
 
         inspect_model = False
+        val_outputs, val_targets, val_attentions = [], [], []
+
+        for i, dataset in enumerate(val_loader):
+            data, target = fetch_model_data(dataset, device=device)
+            with torch.no_grad():
+                output = feed_model_data(model, data)
+            if inspect_model:
+                output, attention_scores = output
+                attention_scores = [att_score[:, 0] for att_score in attention_scores]
+            if num_main_losses is not None:
+                output = output[-num_main_losses:]
+                target = target[-num_main_losses:]
+            if downsampling > 1:
+                for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
+                    if out.ndim != 4:
+                        raise RuntimeError(
+                            f"Number of dimensions for output is {out.ndim}"
+                        )
+                    out = torch.repeat_interleave(out, repeats=downsampling, dim=-2)
+                    out = match_shape(out, tgt)
+                    output[i] = out
+                if inspect_model:
+                    a_target = target[0]
+                    attention_scores = [
+                        torch.repeat_interleave(att_score, repeats=downsampling, dim=-2)
+                        for att_score in attention_scores
+                    ]
+                    attention_scores = [
+                        match_att_shape(att_score, a_target)
+                        for att_score in attention_scores
+                    ]
+                    val_attentions.append(attention_scores)
+            val_outputs += output
+            val_targets += target
+
+        val_y_pred = torch.argmax(val_outputs[0], dim=1).cpu().numpy()
+        val_y_true = val_targets[0].squeeze(-1).mode(dim=1).values.cpu().numpy()
+
+        val_acc = accuracy_score(val_y_true, val_y_pred)
+        val_f1 = f1_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+        val_precision = precision_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+        val_recall = recall_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+
+        print("Validation Accuracy:", val_acc)
+        print("Validation F1 score:", val_f1)
+        print("Validation Precision:", val_precision)
+        print("Validation Recall:", val_recall)
+
+        # Plot confusion matrix
+        ticklabels = NEW_ACTION_CLASSES_V2
+
+        val_cm = confusion_matrix(val_y_true, val_y_pred, labels=list(range(len(ticklabels))))
+
+        print("Validation Confusion matrix:")
+        print(val_cm)
+        print()
+
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(
+            val_cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=VIS_ACTION_CLASSES_V2,
+            yticklabels=VIS_ACTION_CLASSES_V2,
+        )
+        plt.xlabel("Prediction")
+        plt.ylabel("Ground Truth")
+        plt.title("Validation Confusion Matrix")
+
+        # Save confusion matrix
+        val_cm_dir = f"{eval_dir}/val_cm"
+        try:
+            os.makedirs(val_cm_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create val_cm directory '{val_cm_dir}': {e}") from e
+        plt.savefig(f"{val_cm_dir}/fold{fold_str}.png")
+        plt.close()
+
+        # Store validation metrics
+        val_acc_list.append(val_acc)
+        val_f1_list.append(val_f1)
+        val_precision_list.append(val_precision)
+        val_recall_list.append(val_recall)
+        val_cm_list.append(val_cm)
+
+        del val_outputs, val_targets
+        torch.cuda.empty_cache()
+
+        # Test Evaluation
+        printh("Test Evaluation", 96)
+        print("Test video ID:", test_video_id)
+        print()
+
         outputs, targets, attentions = [], [], []
 
         for i, dataset in enumerate(test_loader):
@@ -427,7 +591,7 @@ def main(
                 output = output[-num_main_losses:]
                 target = target[-num_main_losses:]
             if downsampling > 1:
-                for i, (out, tgt) in enumerate(zip(output, target)):
+                for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
                     if out.ndim != 4:
                         raise RuntimeError(
                             f"Number of dimensions for output is {out.ndim}"
@@ -457,23 +621,17 @@ def main(
         precision = precision_score(y_true, y_pred, average="weighted", zero_division=0)
         recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)
 
-        print("Accuracy:", acc)
-        print("F1 score:", f1)
-        print("Precision:", precision)
-        print("Recall:", recall)
+        print("Test Accuracy:", acc)
+        print("Test F1 score:", f1)
+        print("Test Precision:", precision)
+        print("Test Recall:", recall)
 
         # Plot confusion matrix
-        # ticklabels = action_classes
-        ticklabels = NEW_ACTION_CLASSES
-        if "new_action_classes" in globals() and isinstance(
-            new_action_classes, (list, tuple)
-        ):  # type: ignore
-            y_true = [ticklabels.index(new_action_classes[y]) for y in y_true]  # type: ignore
-            y_pred = [ticklabels.index(new_action_classes[y]) for y in y_pred]  # type: ignore
+        ticklabels = NEW_ACTION_CLASSES_V2
 
         cm = confusion_matrix(y_true, y_pred, labels=list(range(len(ticklabels))))
 
-        print("Confusion matrix:")
+        print("Test Confusion matrix:")
         print(cm)
         print()
 
@@ -483,16 +641,19 @@ def main(
             annot=True,
             fmt="d",
             cmap="Blues",
-            xticklabels=VIS_ACTION_CLASSES,
-            yticklabels=VIS_ACTION_CLASSES,
+            xticklabels=VIS_ACTION_CLASSES_V2,
+            yticklabels=VIS_ACTION_CLASSES_V2,
         )
         plt.xlabel("Prediction")
         plt.ylabel("Ground Truth")
-        plt.title("Confusion Matrix")
+        plt.title("Test Confusion Matrix")
 
         # Save confusion matrix
         cm_dir = f"{eval_dir}/cm"
-        os.makedirs(cm_dir, exist_ok=True)
+        try:
+            os.makedirs(cm_dir, exist_ok=True)
+        except OSError as e:
+            raise RuntimeError(f"Failed to create cm directory '{cm_dir}': {e}") from e
         plt.savefig(f"{cm_dir}/fold{fold_str}.png")
         plt.close()
 
@@ -505,7 +666,7 @@ def main(
         torch.cuda.empty_cache()
         gc.collect()
 
-        # Store metrics
+        # Store test metrics
         acc_list.append(acc)
         f1_list.append(f1)
         precision_list.append(precision)
@@ -518,8 +679,32 @@ def main(
     precision_mean, precision_std = np.mean(precision_list), np.std(precision_list)
     recall_mean, recall_std = np.mean(recall_list), np.std(recall_list)
 
+    val_acc_mean, val_acc_std = np.mean(val_acc_list), np.std(val_acc_list)
+    val_f1_mean, val_f1_std = np.mean(val_f1_list), np.std(val_f1_list)
+    val_precision_mean, val_precision_std = np.mean(val_precision_list), np.std(val_precision_list)
+    val_recall_mean, val_recall_std = np.mean(val_recall_list), np.std(val_recall_list)
+
+    best_train_loss_mean, best_train_loss_std = np.mean(best_train_loss_list), np.std(best_train_loss_list)
+    best_val_loss_mean, best_val_loss_std = np.mean(best_val_loss_list), np.std(best_val_loss_list)
+
     print("\n" + "=" * 64)
-    print("All-Fold Results Summary")
+    print("Training All-Fold Results Summary")
+    print("=" * 64)
+    print(f"Loss:      {best_train_loss_mean:.4f} ± {best_train_loss_std:.4f}")
+    print("=" * 64)
+
+    print("\n" + "=" * 64)
+    print("Validation All-Fold Results Summary")
+    print("=" * 64)
+    print(f"Loss:      {best_val_loss_mean:.4f} ± {best_val_loss_std:.4f}")
+    print(f"Accuracy:  {val_acc_mean:.4f} ± {val_acc_std:.4f}")
+    print(f"F1 Score:  {val_f1_mean:.4f} ± {val_f1_std:.4f}")
+    print(f"Precision: {val_precision_mean:.4f} ± {val_precision_std:.4f}")
+    print(f"Recall:    {val_recall_mean:.4f} ± {val_recall_std:.4f}")
+    print("=" * 64)
+
+    print("\n" + "=" * 64)
+    print("Test All-Fold Results Summary")
     print("=" * 64)
     print(f"Accuracy:  {acc_mean:.4f} ± {acc_std:.4f}")
     print(f"F1 Score:  {f1_mean:.4f} ± {f1_std:.4f}")
@@ -529,36 +714,67 @@ def main(
 
     # Convert numpy arrays to lists for JSON serialization
     cm_list_serializable = [cm.tolist() for cm in cm_list]
+    val_cm_list_serializable = [cm.tolist() for cm in val_cm_list]
 
     # Save metrics
     metrics = {
-        "acc": {
-            "folds": acc_list,
-            "mean": acc_mean,
-            "std": acc_std,
+        "val": {
+            "acc": {
+                "folds": val_acc_list,
+                "mean": val_acc_mean,
+                "std": val_acc_std,
+            },
+            "f1": {
+                "folds": val_f1_list,
+                "mean": val_f1_mean,
+                "std": val_f1_std,
+            },
+            "precision": {
+                "folds": val_precision_list,
+                "mean": val_precision_mean,
+                "std": val_precision_std,
+            },
+            "recall": {
+                "folds": val_recall_list,
+                "mean": val_recall_mean,
+                "std": val_recall_std,
+            },
+            "cm": {
+                "folds": val_cm_list_serializable,
+            },
         },
-        "f1": {
-            "folds": f1_list,
-            "mean": f1_mean,
-            "std": f1_std,
-        },
-        "precision": {
-            "folds": precision_list,
-            "mean": precision_mean,
-            "std": precision_std,
-        },
-        "recall": {
-            "folds": recall_list,
-            "mean": recall_mean,
-            "std": recall_std,
-        },
-        "cm": {
-            "folds": cm_list_serializable,
+        "test": {
+            "acc": {
+                "folds": acc_list,
+                "mean": acc_mean,
+                "std": acc_std,
+            },
+            "f1": {
+                "folds": f1_list,
+                "mean": f1_mean,
+                "std": f1_std,
+            },
+            "precision": {
+                "folds": precision_list,
+                "mean": precision_mean,
+                "std": precision_std,
+            },
+            "recall": {
+                "folds": recall_list,
+                "mean": recall_mean,
+                "std": recall_std,
+            },
+            "cm": {
+                "folds": cm_list_serializable,
+            },
         },
     }
 
-    with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=4)
+    try:
+        with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=4)
+    except OSError as e:
+        raise RuntimeError(f"Failed to save metrics to '{eval_dir}/metrics.json': {e}") from e
 
 
 if __name__ == "__main__":
