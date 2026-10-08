@@ -1,0 +1,7 @@
+defaults:
+  - config_construction_hoi_mt-v1
+  - _self_
+
+models:
+  parameters:
+    message_segment: false

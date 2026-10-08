@@ -1,0 +1,7 @@
+defaults:
+  - config_construction_hoi_ms0
+  - _self_
+
+models:
+  parameters:
+    message_type: v1
