@@ -18,15 +18,15 @@ from vhoi.data_loading import (
     select_model_data_feeder,
     select_model_data_fetcher,
 )
-from vhoi.data_loading_custom import create_data, create_data_loader
-from vhoi.losses_custom_v2 import (
+from vhoi.data_loading_construction_hoi import create_data, create_data_loader
+from vhoi.losses_construction_hoi import (
     select_loss,
     decide_num_main_losses,
     select_loss_types,
     select_loss_learning_mask,
 )
 from vhoi.models import load_model_weights
-from vhoi.models_custom_v2 import TGGCN
+from vhoi.models_construction_hoi import TGGCN
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
