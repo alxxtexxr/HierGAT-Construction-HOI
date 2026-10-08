@@ -1,9 +1,0 @@
-defaults:
-  - models: 2G-GCN_stage1_cad120
-  - data: cad120_5 #mphoi, cad120, bimanual
-hydra:
-  run:
-    dir: outputs_hiergat/${data.name}/${metadata.model_name}/${logging.checkpoint_name}
-resources:
-  use_gpu: true
-  num_threads: 32
