@@ -5,7 +5,6 @@ import gc
 from datetime import datetime
 from pathlib import Path
 
-import fire
 import hydra
 import numpy as np
 import torch
@@ -45,19 +44,28 @@ from src.utils import printh, get_feature_dirs_df, create_data_df
 torch.multiprocessing.set_sharing_strategy("file_system")  # Avoid shared memory crashes
 
 
-def main(
-    config_path="conf/config_construction_hoi.yaml",
-    seed=42,
-    k=10,
-    selected_folds=None,           # List of fold indices to run (0-based). None = run all k folds.
-                                    # Example: selected_folds=[0, 2, 5] to run only folds 0, 2, and 5.
-    num_epochs=None,                # DEFAULT: Number of epochs in the configuration file (10).
-                                    # With early stopping enabled, this is the maximum number of epochs
-    batch_size=None,                # DEFAULT: Batch size in the configuration file (32)
-    min_epochs=10,                  # Minimum epochs before early stopping can activate
-    early_stopping_patience=None,   # Early stopping patience (None = disabled)
-    num_workers=4,                  # Number of data loading workers
-):
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Train and evaluate the model with k-fold cross-validation.
+
+    The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
+    Usage examples:
+
+        python train_construction_hoi.py
+        python train_construction_hoi.py --config-name config_construction_hoi_lr1e-3
+        python train_construction_hoi.py train.k_fold=5 train.selected_folds=[1,3]
+        python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64
+    """
+
+    # Read the training-run settings from the `train` section of the config.
+    seed = cfg.train.seed
+    k_fold = cfg.train.k_fold
+    selected_folds = cfg.train.get("selected_folds", None)  # List of fold numbers (1-based) to run.
+                                                                   # null = run all folds. Example: [1, 3, 5]
+    min_epochs = cfg.train.get("min_epochs", 10)            # Minimum epochs before early stopping can activate
+    early_stopping_patience = cfg.train.get("early_stopping_patience", None)  # null = disabled
+    num_workers = cfg.train.get("num_workers", 4)          # Number of data loading workers
+
     # Set random seed
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -67,17 +75,6 @@ def main(
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-
-    # Load configuration
-    config_path = Path(config_path)
-    with hydra.initialize(config_path=str(config_path.parent), version_base=None):
-        cfg: DictConfig = hydra.compose(config_name=str(config_path.name))
-
-    if num_epochs is not None:
-        cfg.models.optimization.epochs = num_epochs
-    
-    if batch_size is not None:
-        cfg.models.optimization.batch_size = batch_size
 
     torch.set_num_threads(cfg.resources.num_threads)
     model_name, model_input_type = (
@@ -107,20 +104,20 @@ def main(
     # and sort from lowest to highest
     # kfold_test_feature_dirs = feature_dir_counts.index[:k] # OLD
     
-    # NEW - Monte Carlo mechanism: Randomly sample k feature directories as test feature directories
-    kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k)
+    # NEW - Monte Carlo mechanism: Randomly sample k_fold feature directories as test feature directories
+    kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k_fold)
 
-    # Validate and resolve selected_folds (1-based: fold numbers from 1 to k)
+    # Validate and resolve selected_folds (1-based: fold numbers from 1 to k_fold)
     if selected_folds is not None:
         if not selected_folds:
             raise ValueError("selected_folds must not be empty.")
-        invalid_folds = [f for f in selected_folds if f < 1 or f > k]
+        invalid_folds = [f for f in selected_folds if f < 1 or f > k_fold]
         if invalid_folds:
             raise ValueError(
-                f"Invalid fold numbers {invalid_folds}. Valid range: 1 to {k}."
+                f"Invalid fold numbers {invalid_folds}. Valid range: 1 to {k_fold}."
             )
     else:
-        selected_folds = list(range(1, k + 1))
+        selected_folds = list(range(1, k_fold + 1))
 
     # Create evaluation directory
     run_name = (
@@ -128,7 +125,7 @@ def main(
         f"e{cfg.models.optimization.epochs}_"
         f"bs{cfg.models.optimization.batch_size}_"
         f"lr{cfg.models.optimization.learning_rate}_"
-        f"k{k}_"
+        f"k{k_fold}_"
         f"{datetime.now().strftime('%y%m%d%H%M%S')}"
     )
     eval_dir = f"{os.getcwd()}/eval/{run_name}"
@@ -148,7 +145,7 @@ def main(
 
         # Create log directory
         root_log_dir = f"{os.getcwd()}/outputs_hiergat/construction_hoi"
-        fold_str = str(fold_num).zfill(len(str(k)))
+        fold_str = str(fold_num).zfill(len(str(k_fold)))
         checkpoint_name = f"{run_name}_fold{fold_str}"
         log_dir = f"{root_log_dir}/{checkpoint_name}"
         try:
@@ -778,4 +775,4 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

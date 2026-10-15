@@ -1,11 +1,12 @@
 import re
 from pathlib import Path
 
-import fire
+import hydra
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
 import seaborn as sns
+from omegaconf import DictConfig
 
 from src.constants import VIS_ACTION_CLASSES_V2
 
@@ -113,10 +114,25 @@ def plot_confusion_matrix(
     plt.close(fig)
 
 
-def main(
-    log_path: str,
-    output_dir: str = None,
-):
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Plot per-fold confusion matrices from a training log file.
+
+    The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
+    Usage examples:
+
+        python visualize_confusion_matrix.py visualize.log_path=<train.log>
+        python visualize_confusion_matrix.py visualize.log_path=<train.log> \
+            visualize.output_dir=<output_dir>
+    """
+
+    log_path = cfg.visualize.get("log_path", None)
+    if not log_path:
+        raise ValueError(
+            "No log file specified. Set visualize.log_path=<path>."
+        )
+    output_dir = cfg.visualize.get("output_dir", None)
+
     log_path = Path(log_path)
     if not log_path.exists():
         print(f"Error: Log file not found: {log_path}")
@@ -150,4 +166,4 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

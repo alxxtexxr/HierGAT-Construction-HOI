@@ -6,7 +6,6 @@ import random
 from pathlib import Path
 from datetime import datetime
 
-import fire
 import hydra
 import numpy as np
 import torch
@@ -46,11 +45,31 @@ from src.utils import printh, get_feature_dirs_df, create_data_df
 torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-def main(
-    checkpoint: str,
-    dataset: str,
-    config_path: str = "conf/config_construction_hoi.yaml",
-):
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Evaluate a trained checkpoint on a single dataset.
+
+    The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
+    Usage examples:
+
+        python evaluate_fold_on_single_dataset.py \
+            eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
+        python evaluate_fold_on_single_dataset.py \
+            --config-name config_construction_hoi_lr1e-3 \
+            eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
+    """
+
+    checkpoint = cfg.eval.get("checkpoint_path", None)
+    dataset = cfg.eval.get("single_dataset_dir", None)
+    if not checkpoint:
+        raise ValueError(
+            "No checkpoint specified. Set eval.checkpoint_path=<path>."
+        )
+    if not dataset:
+        raise ValueError(
+            "No dataset specified. Set eval.single_dataset_dir=<path>."
+        )
+
     checkpoint_path = Path(checkpoint)
     dataset_path = Path(dataset)
 
@@ -86,10 +105,6 @@ def main(
     torch.cuda.manual_seed_all(42)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-
-    config_path = Path(config_path)
-    with hydra.initialize(config_path=str(config_path.parent), version_base=None):
-        cfg: DictConfig = hydra.compose(config_name=str(config_path.name))
 
     torch.set_num_threads(cfg.resources.num_threads)
     model_name, model_input_type = (
@@ -333,4 +348,4 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

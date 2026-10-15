@@ -5,6 +5,58 @@ defaults:
 hydra:
   run:
     dir: outputs_hiergat/construction_hoi/${models.metadata.model_name}/${models.logging.checkpoint_name}
+  job:
+    # Keep the original working directory (eval/log paths use os.getcwd())
+    chdir: false
+# Training-run settings, overridable from the CLI, e.g. `train.k_fold=5`.
+train:
+  seed: 42
+  # Number of folds
+  k_fold: 10
+  # Fold numbers (1-based) to run, e.g. [1, 3, 5]. null = all folds
+  selected_folds: null
+  # Minimum epochs before early stopping can activate
+  min_epochs: 10
+  # Early stopping patience (null = disabled)
+  early_stopping_patience: null
+  # Number of data loading workers
+  num_workers: 4
+# Evaluation settings, used by evaluate_fold_on_single_dataset.py and
+# evaluate_fold_on_multi_dataset_aggregated.py.
+eval:
+  # Path to the trained checkpoint to evaluate (required)
+  checkpoint_path: null
+  # Dataset features directory
+  # (required by evaluate_fold_on_single_dataset.py)
+  single_dataset_dir: null
+  # List of dataset paths (aggregated script).
+  # null = all FEATURE_DIRS
+  multi_dataset_dirs: null
+  # List of video IDs to exclude (aggregated script)
+  exclude_video_ids: null
+  # Re-evaluate datasets whose eval dir already exists
+  # (evaluate_fold_on_multi_dataset.py only)
+  resume: false
+# Prediction settings, used by predict.py.
+# NOTE: model/data settings come from the saved Hydra config inside
+# <pretrained_model_dir>/.hydra/config.yaml, not from this file.
+predict:
+  # Path to dir containing the pre-trained model information (required)
+  pretrained_model_dir: null
+  # Evaluate all model splits in the same directory and average
+  cross_validate: false
+  # Convert frame-level predictions into segment-level ones
+  convert_frame_to_segment_level: false
+  # Dir to save ground-truth/predicted segmentations (must exist)
+  output_dir: null
+  # Not fully functional yet: fetch attention scores
+  inspect_model: false
+# Log-file plotting settings, used by visualize_confusion_matrix.py.
+visualize:
+  # Path to the training log file to parse (required)
+  log_path: null
+  # Output dir. null = visualizations/confusion_matrices/<log name>
+  output_dir: null
 resources:
   use_gpu: true
   num_threads: 32

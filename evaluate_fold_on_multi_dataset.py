@@ -1,13 +1,33 @@
 import os
 import re
 import subprocess
-import fire
 from pathlib import Path
+
+import hydra
+from omegaconf import DictConfig
 
 from src.constants import FEATURE_DIRS
 
 
-def main(checkpoint: str, resume: bool = False):
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Run evaluate_fold_on_single_dataset.py on every dataset directory.
+
+    The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
+    Usage examples:
+
+        python evaluate_fold_on_multi_dataset.py eval.checkpoint_path=<ckpt.pt>
+        python evaluate_fold_on_multi_dataset.py \
+            eval.checkpoint_path=<ckpt.pt> eval.resume=true
+    """
+
+    checkpoint = cfg.eval.get("checkpoint_path", None)
+    if not checkpoint:
+        raise ValueError(
+            "No checkpoint specified. Set eval.checkpoint_path=<path>."
+        )
+    resume = cfg.eval.get("resume", False)  # Re-evaluate datasets already done
+
     checkpoint_path = Path(checkpoint)
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
@@ -46,9 +66,9 @@ def main(checkpoint: str, resume: bool = False):
 
         cmd = [
             "conda", "run", "-n", "py39_torch271", "--no-capture-output",
-            "python", "evaluate_fold.py",
-            "--checkpoint", checkpoint,
-            "--dataset", dataset
+            "python", "evaluate_fold_on_single_dataset.py",
+            f"eval.checkpoint_path={checkpoint}",
+            f"eval.single_dataset_dir={dataset}",
         ]
 
         result = subprocess.run(cmd)
@@ -70,4 +90,4 @@ def main(checkpoint: str, resume: bool = False):
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

@@ -5,7 +5,6 @@ import gc
 import random
 from pathlib import Path
 
-import fire
 import hydra
 import numpy as np
 import torch
@@ -39,12 +38,30 @@ from src.utils import printh, get_feature_dirs_df
 torch.multiprocessing.set_sharing_strategy("file_system")
 
 
-def main(
-    checkpoint: str,
-    config_path: str = "conf/config_construction_hoi.yaml",
-    datasets: str = None,
-    exclude_video_ids: str = None,
-):
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Evaluate a trained checkpoint on multiple datasets (aggregated metrics).
+
+    The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
+    Usage examples:
+
+        python evaluate_fold_on_multi_dataset_aggregated.py \
+            eval.checkpoint_path=<ckpt.pt>
+        python evaluate_fold_on_multi_dataset_aggregated.py \
+            eval.checkpoint_path=<ckpt.pt> \
+            eval.multi_dataset_dirs=[/path/a/features,/path/b/features]
+        python evaluate_fold_on_multi_dataset_aggregated.py \
+            eval.checkpoint_path=<ckpt.pt> eval.exclude_video_ids=[C0071,C0074]
+    """
+
+    checkpoint = cfg.eval.get("checkpoint_path", None)
+    if not checkpoint:
+        raise ValueError(
+            "No checkpoint specified. Set eval.checkpoint_path=<path>."
+        )
+    datasets = cfg.eval.get("multi_dataset_dirs", None)
+    exclude_video_ids = cfg.eval.get("exclude_video_ids", None)
+
     checkpoint_path = Path(checkpoint)
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
@@ -68,10 +85,6 @@ def main(
     torch.cuda.manual_seed_all(42)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-
-    config_path = Path(config_path)
-    with hydra.initialize(config_path=str(config_path.parent), version_base=None):
-        cfg: DictConfig = hydra.compose(config_name=str(config_path.name))
 
     torch.set_num_threads(cfg.resources.num_threads)
     model_name, model_input_type = (
@@ -107,12 +120,20 @@ def main(
     if datasets is None:
         datasets = [str(p) for p in FEATURE_DIRS]
     else:
-        datasets = [d.strip() for d in datasets.split(",")]
+        # Accept a comma-separated string or a YAML/CLI list
+        if isinstance(datasets, str):
+            datasets = [d.strip() for d in datasets.split(",")]
+        else:
+            datasets = [str(d).strip() for d in datasets]
         print(f"Using {len(datasets)} user-provided dataset(s)")
     print(f"Total datasets: {len(datasets)}")
 
     if exclude_video_ids is not None:
-        exclude_list = [e.strip() for e in exclude_video_ids.split(",")]
+        # Accept a comma-separated string or a YAML/CLI list
+        if isinstance(exclude_video_ids, str):
+            exclude_list = [e.strip() for e in exclude_video_ids.split(",")]
+        else:
+            exclude_list = [str(e).strip() for e in exclude_video_ids]
         filtered = []
         for d in datasets:
             if not any(eid in d for eid in exclude_list):
@@ -407,4 +428,4 @@ def main(
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    main()

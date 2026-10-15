@@ -1,10 +1,6 @@
-import argparse
-from collections import defaultdict
-import json
-import os
-
+import hydra
 import numpy as np
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 from sklearn.metrics import classification_report, precision_recall_fscore_support
 import torch
 
@@ -19,6 +15,9 @@ import sklearn.metrics
 import matplotlib.pyplot as plt
 import itertools
 import pdb
+from collections import defaultdict
+import json
+import os
 
 
 def predict(model_dir, frame_to_segment_level=False, inspect_model=False):
@@ -320,13 +319,13 @@ def fetch_dataset_name(model_dir):
     return dataset_name
 
 
-def predict_all(args):
-    pretrained_model_dir = args.pretrained_model_dir
-    cross_validate = args.cross_validate
-    convert_frame_to_segment_level = args.convert_frame_to_segment_level
-    save_visualisations_dir = args.save_visualisations_dir
-    inspect_model = args.inspect_model
-
+def predict_all(
+    pretrained_model_dir,
+    cross_validate=False,
+    convert_frame_to_segment_level=False,
+    save_visualisations_dir=None,
+    inspect_model=False,
+):
     subactivity_id_to_name, affordance_id_to_name = maybe_load_class_dictionaries(pretrained_model_dir)
     subactivity_names = maybe_get_class_names(subactivity_id_to_name)
     affordance_names = maybe_get_class_names(affordance_id_to_name)
@@ -672,36 +671,35 @@ def cleanup_padding_values(id_to_gt, id_to_pd):
     return id_to_gt, id_to_pd
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser(description='Predict Module.')
+@hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
+def main(cfg: DictConfig):
+    """Generate predictions and evaluation metrics for a pre-trained model.
 
-    parser.add_argument('--pretrained_model_dir', type=str, required=True,
-                        help='Path to directory containing the pre-trained model information.')
-    parser.add_argument('--cross_validate', action='store_true',
-                        help='If specified, run prediction for the specified model on all splits present in the same '
-                             'directory of pretrained_model_dir. For instance, if pretrained_model_dir is '
-                             '.../my_model_Subject5, then we look for all other .../my_model_SubjectS in .../, run all '
-                             'of them, and average their results to obtain the cross-validated performance. If '
-                             'not specified, then the code only generates predictions and results for the '
-                             'model specified in pretrained_model_dir.')
-    parser.add_argument('--convert_frame_to_segment_level', action='store_true',
-                        help='If specified, convert frame-level predictions into segment-level predictions '
-                             'for model evaluation. Only meaningful if the model being tested was trained with '
-                             'ground-truth segmentation and is a frame-level model.')
-    parser.add_argument('--save_visualisations_dir', type=str,
-                        help='If specified, save ground-truth/predicted segmentations to that dir. The specified '
-                             'dir must already exist.')
-    parser.add_argument('--inspect_model', action='store_true',
-                        help='Not fully functional yet. If specified fetch attention scores for the model.')
-    parser.set_defaults(func=predict_all)
-    return parser
+    Model/data settings are read from the saved Hydra config inside
+    <pretrained_model_dir>/.hydra/config.yaml (frozen at training time).
+    The run settings come from the `predict` section of
+    conf/config_construction_hoi.yaml and can be overridden from the CLI:
 
+        python predict.py predict.pretrained_model_dir=<model_dir>
+        python predict.py predict.pretrained_model_dir=<model_dir> \
+            predict.cross_validate=true predict.inspect_model=true
+    """
 
-def main():
-    arg_parser = create_arg_parser()
-    args = arg_parser.parse_args()
-    args.func(args)
-    # predict_all(args)
+    pretrained_model_dir = cfg.predict.get("pretrained_model_dir", None)
+    if not pretrained_model_dir:
+        raise ValueError(
+            "No model directory specified. "
+            "Set predict.pretrained_model_dir=<path>."
+        )
+    predict_all(
+        pretrained_model_dir,
+        cross_validate=cfg.predict.get("cross_validate", False),
+        convert_frame_to_segment_level=cfg.predict.get(
+            "convert_frame_to_segment_level", False
+        ),
+        save_visualisations_dir=cfg.predict.get("output_dir", None),
+        inspect_model=cfg.predict.get("inspect_model", False),
+    )
 
 
 if __name__ == '__main__':
