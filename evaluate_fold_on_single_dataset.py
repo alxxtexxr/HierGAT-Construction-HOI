@@ -54,7 +54,7 @@ def main(cfg: DictConfig):
         python evaluate_fold_on_single_dataset.py \
             eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
         python evaluate_fold_on_single_dataset.py \
-            --config-name config_construction_hoi_lr1e-3 \
+            --config-name config_construction_hoi_mt-v1 \
             eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
     """
 

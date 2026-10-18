@@ -17,10 +17,10 @@ python train_construction_hoi.py
 The configuration is loaded by Hydra from `conf/config_construction_hoi.yaml` (along with `conf/models/2G-GCN_construction_hoi.yaml` and `conf/data/construction_hoi.yaml`). To customize the training settings, modify these files or override values from the command line:
 ```bash
 # Use a different config (e.g. one of the variants in conf/)
-python train_construction_hoi.py --config-name config_construction_hoi_lr1e-3
+python train_construction_hoi.py --config-name config_construction_hoi_mt-v1
 
 # Override settings from any section, e.g. training run settings
-python train_construction_hoi.py train.k_fold=5 train.selected_folds=[1,3] train.seed=123
+python train_construction_hoi.py train.k_fold=10 train.selected_folds=[1,3] train.seed=123
 
 # Or model/optimization settings
 python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64

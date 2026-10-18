@@ -8,10 +8,10 @@ ACTION_CLASSES = [
     'listen to',        # 5
 
     # rebar
-    'prepare_rebar',    # 'tie',        # 6
+    'prepare_rebar',    # 6 -> 'tie'
     'erect',            # 7
     'prepare_rebar',    # 8
-    'carry',            # 'transport',  # 9
+    'carry',            # 9 -> 'transport'
 
     # formwork
     'install',          # 10
@@ -27,7 +27,7 @@ ACTION_CLASSES = [
 
     # all
     'inspect',          # 16
-    None,               # 'no interaction', # 17
+    None,               # 17 -> 'no interaction'
 ]
 NEW_ACTION_CLASSES = [
     # rebar
@@ -41,11 +41,11 @@ NEW_ACTION_CLASSES = [
     # all
     'inspect',          # 4
 
-    # # replaced
+    # renamed
     # 'tie',              # 5 -> 1
     # 'transport',        # 6 -> 3
 
-    # # removed
+    # removed
     # 'no interaction',   # 7
 ]
 VIS_ACTION_CLASSES = [

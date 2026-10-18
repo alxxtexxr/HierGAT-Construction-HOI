@@ -8,7 +8,7 @@ hydra:
   job:
     # Keep the original working directory (eval/log paths use os.getcwd())
     chdir: false
-# Training-run settings, overridable from the CLI, e.g. `train.k_fold=5`.
+# Training-run settings, overridable from the CLI, e.g. `train.k_fold=10`.
 train:
   seed: 42
   # Number of folds
