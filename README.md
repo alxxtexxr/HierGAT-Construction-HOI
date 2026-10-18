@@ -6,7 +6,7 @@ Original HierGAT repository: [HierGAT](https://github.com/wjx1198/HierGAT)
 
 ## Requirements
 - CUDA 11.8 (primary setup on Linux; CPU and MPS are also supported on other platforms)
-- uv run ≥ 3.12
+- Python ≥ 3.12
 - [uv](https://docs.astral.sh/uv/)
 
 ## Setup
