@@ -10,12 +10,12 @@ Original HierGAT repository: [HierGAT](https://github.com/wjx1198/HierGAT)
 - [uv](https://docs.astral.sh/uv/)
 
 ## Setup
-Create the virtual environment and install all dependencies:
+Create the virtual environment and install the project dependencies:
 ```bash
 uv sync
 ```
 
-## Model Training
+## Model Training and Evaluation
 Run the training script:
 ```bash
 uv run train_construction_hoi.py
@@ -39,7 +39,18 @@ uv run train_construction_hoi.py \
     models.optimization.batch_size=64
 ```
 
-## Model Evaluation
+## Visualization
+Generate per-fold confusion matrices from a training log:
+```
+uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
+```
+
+## Advanced Usage
+<details>
+<summary>Click to expand</summary>
+  
+### Fold Evaluation
+
 Evaluation settings are defined in the `eval` section of `conf/config_construction_hoi.yaml` and can be overridden from the command line.
 ```bash
 # Evaluate a checkpoint on a single dataset
@@ -59,7 +70,7 @@ uv run evaluate_fold_on_multi_dataset.py \
     eval.resume=true
 ```
 
-<!-- ## Prediction
+### Prediction
 Run prediction using a pretrained model:
 ```bash
 # Use the default prediction settings from the `predict` configuration
@@ -68,10 +79,6 @@ uv run predict.py predict.pretrained_model_dir=<model_dir>
 # Run prediction with cross-validation enabled
 uv run predict.py predict.pretrained_model_dir=<model_dir> predict.cross_validate=true
 ```
-Note: `predict.py` loads the model and data settings from the saved Hydra configuration at `<model_dir>/.hydra/config.yaml`, which is preserved from training time. It does not load these settings from the configuration files in `conf/`. -->
+Note: `predict.py` loads the model and data settings from the saved Hydra configuration at `<model_dir>/.hydra/config.yaml`, which is preserved from training time. It does not load these settings from the configuration files in `conf/`.
 
-## Visualization
-Generate per-fold confusion matrices from a training log:
-```
-uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
-```
+</details>
