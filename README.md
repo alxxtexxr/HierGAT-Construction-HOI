@@ -16,15 +16,17 @@ uv sync
 ```
 
 ## Data Preparation
-1. Download the [datasets](#) and create a `data/` directory to put them inside:
+1. Download the [datasets](#) and create a `data/` directory to store them:
    ```bash
    mkdir -p data
    ```
 
-2. Create `conf/data/dataset_dirs/construction_hoi.yaml` by copying the example configuration and replacing the placeholder paths with your downloaded dataset directories in `data/` (one path per dataset):
+2. Create `conf/data/dataset_dirs/construction_hoi.yaml` by copying the example configuration file:
     ```bash
     cp conf/data/dataset_dirs/construction_hoi.example.yaml conf/data/dataset_dirs/construction_hoi.yaml
     ```
+
+3. Edit `conf/data/dataset_dirs/construction_hoi.yaml` to replace the placeholder paths with the paths to the downloaded dataset directories under `data/`, specifying one path per dataset.
 
 ## Model Training and Evaluation
 Start training by running:
