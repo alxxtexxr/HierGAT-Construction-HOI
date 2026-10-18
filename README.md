@@ -1,16 +1,17 @@
 # HierGAT for Human-Object Interaction (HOI) Detection on Construction Sites
 
-<!-- https://github.com/user-attachments/assets/e50d8061-f5ad-4bcd-bf3b-2ad013e10e81 -->
-
-Original HierGAT repository: [HierGAT](https://github.com/wjx1198/HierGAT)
+This project is based on the [original HierGAT repository](https://github.com/wjx1198/HierGAT).
 
 ## Requirements
 - CUDA 11.8 (primary setup on Linux; CPU and MPS are also supported on other platforms)
-- Python ≥ 3.12
-- [uv](https://docs.astral.sh/uv/)
+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) for Python and dependency management. If `pip` is installed, you can install `uv` by running:
+    ```bash
+    pip install uv
+    ```
 
 ## Setup
-Create the virtual environment and install the project dependencies:
+Set up the Python virtual environment and install the project dependencies:
 ```bash
 uv sync
 ```
