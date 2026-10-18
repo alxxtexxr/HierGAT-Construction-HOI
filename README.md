@@ -1,56 +1,77 @@
-# HierGAT Model for Human-Object Interaction (HOI) Detection in Construction Sites
+# HierGAT for Human-Object Interaction (HOI) Detection on Construction Sites
 
-https://github.com/user-attachments/assets/e50d8061-f5ad-4bcd-bf3b-2ad013e10e81
+<!-- https://github.com/user-attachments/assets/e50d8061-f5ad-4bcd-bf3b-2ad013e10e81 -->
 
-Original HierGAT repository: https://github.com/wjx1198/HierGAT
+Original HierGAT repository: [HierGAT](https://github.com/wjx1198/HierGAT)
+
+## Requirements
+- CUDA 11.8 (primary setup on Linux; CPU and MPS are also supported on other platforms)
+- uv run ≥ 3.12
+- [uv](https://docs.astral.sh/uv/)
 
 ## Setup
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management (Python ≥ 3.12). Create the virtual environment and install all dependencies:
+Create the virtual environment and install all dependencies:
 ```bash
 uv sync
 ```
-On Linux, `torch` is installed as the CUDA 11.8 build from the PyTorch index; on other platforms (e.g. macOS) it automatically falls back to the PyPI build with CPU/MPS support.
 
-## Model Training and Evaluation
+## Model Training
+Run the training script:
 ```bash
-python train_construction_hoi.py
+uv run train_construction_hoi.py
 ```
-The configuration is loaded by Hydra from `conf/config_construction_hoi.yaml` (along with `conf/models/2G-GCN_construction_hoi.yaml` and `conf/data/construction_hoi.yaml`). To customize the training settings, modify these files or override values from the command line:
+By default, Hydra loads the configuration from `conf/config_construction_hoi.yaml` (along with `conf/models/2G-GCN_construction_hoi.yaml` and `conf/data/construction_hoi.yaml`). 
+
+To customize the training settings, edit these configuration files or override individual parameters from the command line:
 ```bash
-# Use a different config (e.g. one of the variants in conf/)
-python train_construction_hoi.py --config-name config_construction_hoi_ms0
+# Use a different configuration (e.g. one of the variants in conf/)
+uv run train_construction_hoi.py --config-name config_construction_hoi_ms0
 
-# Override settings from any section, e.g. training run settings
-python train_construction_hoi.py train.k_fold=10 train.selected_folds=[1,3] train.seed=123
+# Override training settings
+uv run train_construction_hoi.py \
+    train.k_fold=10 \
+    train.selected_folds=[1,3] \
+    train.seed=123
 
-# Or model/optimization settings
-python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64
+# Override model or optimization settings
+uv run train_construction_hoi.py \
+    models.optimization.epochs=20 \
+    models.optimization.batch_size=64
 ```
 
 ## Model Evaluation
-Evaluation settings live in the `eval` section of the config (see `conf/config_construction_hoi.yaml`) and are overridden from the command line:
+Evaluation settings are defined in the `eval` section of `conf/config_construction_hoi.yaml` and can be overridden from the command line.
 ```bash
 # Evaluate a checkpoint on a single dataset
-python evaluate_fold_on_single_dataset.py \
-    eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
+uv run evaluate_fold_on_single_dataset.py \
+    eval.checkpoint_path=<ckpt.pt> \
+    eval.single_dataset_dir=<features_dir>
 
 # Evaluate a checkpoint on multiple datasets (aggregated metrics)
-python evaluate_fold_on_multi_dataset_aggregated.py \
+uv run evaluate_fold_on_multi_dataset_aggregated.py \
     eval.checkpoint_path=<ckpt.pt> \
     eval.multi_dataset_dirs=[/path/a/features,/path/b/features] \
     eval.exclude_video_ids=[C0071,C0074]
 
-# Or run evaluate_fold_on_single_dataset.py once per dataset dir
-python evaluate_fold_on_multi_dataset.py eval.checkpoint_path=<ckpt.pt> eval.resume=true
+# Evaluate each dataset separately
+uv run evaluate_fold_on_multi_dataset.py \
+    eval.checkpoint_path=<ckpt.pt> \
+    eval.resume=true
 ```
 
-## Prediction and Visualisation
+<!-- ## Prediction
+Run prediction using a pretrained model:
 ```bash
-# Run prediction for a pre-trained model (settings in the `predict` section)
-python predict.py predict.pretrained_model_dir=<model_dir>
-python predict.py predict.pretrained_model_dir=<model_dir> predict.cross_validate=true
+# Use the default prediction settings from the `predict` configuration
+uv run predict.py predict.pretrained_model_dir=<model_dir>
 
-# Plot per-fold confusion matrices from a training log (settings in `visualize`)
-python visualize_confusion_matrix.py visualize.log_path=<train.log>
+# Run prediction with cross-validation enabled
+uv run predict.py predict.pretrained_model_dir=<model_dir> predict.cross_validate=true
 ```
-Note: `predict.py` reads model/data settings from the saved Hydra config inside `<model_dir>/.hydra/config.yaml` (frozen at training time), not from `conf/`.
+Note: `predict.py` loads the model and data settings from the saved Hydra configuration at `<model_dir>/.hydra/config.yaml`, which is preserved from training time. It does not load these settings from the configuration files in `conf/`. -->
+
+## Visualization
+Generate per-fold confusion matrices from a training log:
+```
+uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
+```
