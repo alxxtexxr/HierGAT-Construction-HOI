@@ -16,4 +16,3 @@ conf/data/dataset_dirs/construction_hoi.yaml
 *_output.*
 *.md
 !README.md
-Datasheet Info.ipynb
