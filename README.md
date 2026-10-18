@@ -26,7 +26,7 @@ uv sync
     cp conf/data/dataset_dirs/construction_hoi.example.yaml conf/data/dataset_dirs/construction_hoi.yaml
     ```
 
-3. Edit `conf/data/dataset_dirs/construction_hoi.yaml` to replace the placeholder paths with the paths to the downloaded dataset directories under `data/`, specifying one path per dataset.
+3. Edit `conf/data/dataset_dirs/construction_hoi.yaml` to replace the placeholder paths with the paths to the downloaded dataset directories under `data/` (one path per dataset).
 
 ## Model Training and Evaluation
 Start training by running:
