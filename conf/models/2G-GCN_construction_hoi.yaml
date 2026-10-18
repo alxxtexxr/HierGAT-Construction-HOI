@@ -21,7 +21,7 @@ parameters:
   message_geometry_to_objects: true 
   message_geometry_to_human: true # custom, original: false, note this!
   message_segment: true
-  message_type: v2  # v1 [relational] or v2 [non-relational]
+  message_type: v1  # v1 [relational] or v2 [non-relational]
   message_granularity: v1  # v1 [generic] or v2 [specific]
   message_aggregation: att  # mean_pooling [mp] or attention [att]
   object_segment_update_strategy: ind  # same_as_human [sah], independent [ind], or conditional_on_human [coh]
