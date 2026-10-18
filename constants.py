@@ -42,11 +42,11 @@ NEW_ACTION_CLASSES = [
     'inspect',          # 4
 
     # renamed
-    # 'tie',              # 5 -> 1
-    # 'transport',        # 6 -> 3
+    # 'tie',            # 5 -> 1
+    # 'transport',      # 6 -> 3
 
     # removed
-    # 'no interaction',   # 7
+    # 'no interaction', # 7
 ]
 VIS_ACTION_CLASSES = [
     # rebar

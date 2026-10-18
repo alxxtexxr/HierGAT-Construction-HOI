@@ -51,7 +51,7 @@ def main(cfg: DictConfig):
     Usage examples:
 
         python train_construction_hoi.py
-        python train_construction_hoi.py --config-name config_construction_hoi_mt-v1
+        python train_construction_hoi.py --config-name config_construction_hoi_ms0
         python train_construction_hoi.py train.k_fold=10 train.selected_folds=[1,3]
         python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64
     """
