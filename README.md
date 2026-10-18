@@ -5,10 +5,11 @@ https://github.com/user-attachments/assets/e50d8061-f5ad-4bcd-bf3b-2ad013e10e81
 Original HierGAT repository: https://github.com/wjx1198/HierGAT
 
 ## Setup
-Install the required Python libraries:
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management (Python ≥ 3.12). Create the virtual environment and install all dependencies:
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+On Linux, `torch` is installed as the CUDA 11.8 build from the PyTorch index; on other platforms (e.g. macOS) it automatically falls back to the PyPI build with CPU/MPS support.
 
 ## Model Training and Evaluation
 ```bash
