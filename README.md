@@ -15,8 +15,19 @@ Create the virtual environment and install the project dependencies:
 uv sync
 ```
 
+## Data Preparation
+1. Download the [datasets](#) and create a `data/` directory to put them inside:
+   ```bash
+   mkdir -p data
+   ```
+
+2. Create `conf/data/dataset_dirs/construction_hoi.yaml` by copying the example configuration and replacing the placeholder paths with your downloaded dataset directories in `data/` (one path per dataset):
+    ```bash
+    cp conf/data/dataset_dirs/construction_hoi.example.yaml conf/data/dataset_dirs/construction_hoi.yaml
+    ```
+
 ## Model Training and Evaluation
-Run the training script:
+Start training by running:
 ```bash
 uv run train_construction_hoi.py
 ```
