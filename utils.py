@@ -4,11 +4,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+
 def printh(h, n=128):
     print("=" * n)
     print(h)
     print("=" * n)
-    
+
 def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
     feature_dir_dicts = []
     for dirs in feature_dirs:
@@ -36,7 +37,7 @@ def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
     feature_dirs_df = feature_dirs_df[feature_dirs_df['action_label'] != -1] # remove rows where action_label == -1
     return feature_dirs_df
 
-def create_data_df(feature_dirs, action_classes, new_action_classes=None, 
+def create_data_df(feature_dirs, action_classes, new_action_classes=None,
                    downsampling: int = 1, test_data: bool = False):
     base_dirs = []
     dirs = []
@@ -53,36 +54,38 @@ def create_data_df(feature_dirs, action_classes, new_action_classes=None,
 
     for feature_dir in feature_dirs:
         feature_dir = Path(feature_dir)
-        
+
         # Store directories
         base_dirs.append(str(feature_dir.parent.parent))
         dirs.append(str(feature_dir))
-        
+
         # Store start and end FIDs
         match = re.search(r"range_([0-9]+(?:\.[0-9]+)?)_([0-9]+(?:\.[0-9]+)?)", str(feature_dir))
+        if match is None:
+            raise ValueError(f"Feature directory has no frame range: {feature_dir}")
         start_fid, end_fid = map(float, match.groups())
         start_fids.append(start_fid)
         end_fids.append(end_fid)
-        
+
         # Load and store human (subject) features
         subject_visual_features = np.load(feature_dir / 'subject_visual_features.npy')
         subject_boxes = np.load(feature_dir / 'subject_boxes.npy')
         # subject_poses = np.zeros((subject_visual_features.shape[0], 17, 2))
         subject_poses = np.load(feature_dir / 'subject_poses.npy')
-        
+
         human_features_list.append([subject_visual_features])
         human_boxes_list.append([subject_boxes])
         human_poses_list.append([subject_poses])
-        
+
         # Load and store object features
         object_visual_features = np.load(feature_dir / 'object_visual_features.npy')
         object_boxes = np.load(feature_dir / 'object_boxes.npy')
-        
+
         object_features_list.append(object_visual_features[:, np.newaxis, :])
         object_boxes_list.append(object_boxes[:, np.newaxis, :])
-        
+
         # Extract and store ground-truth action label
-        if not test_data:
+        if not test_data and gt_list is not None and action_labels is not None:
             action_label_str = str(feature_dir).split('_action_')[-1]
             if '_' in action_label_str:
                 action_label_str = action_label_str.split('_')[0]
@@ -95,7 +98,7 @@ def create_data_df(feature_dirs, action_classes, new_action_classes=None,
                 'Human1': [action_label] * seq_len,
             })
             action_labels.append(action_label)
-        
+
         # Store number of steps
         num_steps = len(subject_visual_features[downsampling - 1::downsampling])
         xs_steps.append(num_steps)

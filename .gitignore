@@ -8,6 +8,7 @@ outputs_hiergat/
 predict_results/
 visualizations/
 !conf/data/
+conf/data/dataset_dirs/construction_hoi.yaml
 *.old.*
 *.tmp.*
 *.log.*

@@ -33,13 +33,12 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 
 from predict import match_shape, match_att_shape
-from src.constants import (
-    ACTION_CLASSES_V2,
-    NEW_ACTION_CLASSES_V2,
-    VIS_ACTION_CLASSES_V2,
-    FEATURE_DIRS,
+from constants import (
+    ACTION_CLASSES,
+    NEW_ACTION_CLASSES,
+    VIS_ACTION_CLASSES,
 )
-from src.utils import printh, get_feature_dirs_df, create_data_df
+from utils import printh, get_feature_dirs_df, create_data_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")  # Avoid shared memory crashes
 
@@ -56,6 +55,8 @@ def main(cfg: DictConfig):
         python train_construction_hoi.py train.k_fold=5 train.selected_folds=[1,3]
         python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64
     """
+
+    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
 
     # Read the training-run settings from the `train` section of the config.
     seed = cfg.train.seed
@@ -92,9 +93,9 @@ def main(cfg: DictConfig):
 
     # Determine test feature directories for k-fold
     feature_dirs_df = get_feature_dirs_df(
-        FEATURE_DIRS,
-        ACTION_CLASSES_V2,
-        NEW_ACTION_CLASSES_V2,
+        dataset_dirs,
+        ACTION_CLASSES,
+        NEW_ACTION_CLASSES,
     )
     feature_dirs_df = feature_dirs_df.dropna(subset=['action_label'])
     
@@ -161,9 +162,9 @@ def main(cfg: DictConfig):
         # Log training and test video IDs
         test_video_id = Path(test_feature_dir).parent.stem.split("_")[0]
         all_video_ids = [
-            feature_dir.parent.stem.split("_")[0] for feature_dir in FEATURE_DIRS
+            feature_dir.parent.stem.split("_")[0] for feature_dir in dataset_dirs
         ]
-        # train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in FEATURE_DIRS if feature_dir != test_feature_dir]
+        # train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in dataset_dirs if feature_dir != test_feature_dir]
         train_video_ids = [
             video_id for video_id in all_video_ids if video_id != test_video_id
         ]
@@ -194,8 +195,8 @@ def main(cfg: DictConfig):
         # Create data dataframe
         df = create_data_df(
             train_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES_V2,
-            NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
+            ACTION_CLASSES,
+            NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
         )
 
         # Split train and validation feature data
@@ -330,13 +331,19 @@ def main(cfg: DictConfig):
         val_data = val_df[data_cols].to_numpy().T.tolist()
         test_data = create_data(
             test_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES_V2,
-            NEW_ACTION_CLASSES_V2 if "NEW_ACTION_CLASSES_V2" in globals() else None,
+            ACTION_CLASSES,
+            NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
         )
 
         # Create data loaders
         train_loader, scalers, _ = create_data_loader(
-            *train_data,
+            train_data[0],
+            train_data[1],
+            train_data[2],
+            train_data[3],
+            train_data[4],
+            train_data[5],
+            train_data[6],
             model_name,
             batch_size=batch_size,
             shuffle=True,
@@ -346,7 +353,13 @@ def main(cfg: DictConfig):
             num_workers=num_workers,
         )
         val_loader, _, _ = create_data_loader(
-            *val_data,
+            val_data[0],
+            val_data[1],
+            val_data[2],
+            val_data[3],
+            val_data[4],
+            val_data[5],
+            val_data[6],
             model_name,
             batch_size=len(val_data[0]),
             shuffle=False,
@@ -374,7 +387,7 @@ def main(cfg: DictConfig):
         model_creation_args = cfg.models.parameters
         model_creation_args = {**data_info, **model_creation_args}
         dataset_name = cfg.data.name
-        num_classes = len(NEW_ACTION_CLASSES_V2)
+        num_classes = len(NEW_ACTION_CLASSES)
         model_creation_args["num_classes"] = (num_classes, None)
         device = (
             "cuda" if torch.cuda.is_available() and cfg.resources.use_gpu else "cpu"
@@ -487,6 +500,7 @@ def main(cfg: DictConfig):
             data, target = fetch_model_data(dataset, device=device)
             with torch.no_grad():
                 output = feed_model_data(model, data)
+            attention_scores = []
             if inspect_model:
                 output, attention_scores = output
                 attention_scores = [att_score[:, 0] for att_score in attention_scores]
@@ -530,7 +544,7 @@ def main(cfg: DictConfig):
         print("Validation Recall:", val_recall)
 
         # Plot confusion matrix
-        ticklabels = NEW_ACTION_CLASSES_V2
+        ticklabels = NEW_ACTION_CLASSES
 
         val_cm = confusion_matrix(val_y_true, val_y_pred, labels=list(range(len(ticklabels))))
 
@@ -544,8 +558,8 @@ def main(cfg: DictConfig):
             annot=True,
             fmt="d",
             cmap="Blues",
-            xticklabels=VIS_ACTION_CLASSES_V2,
-            yticklabels=VIS_ACTION_CLASSES_V2,
+            xticklabels=VIS_ACTION_CLASSES,
+            yticklabels=VIS_ACTION_CLASSES,
         )
         plt.xlabel("Prediction")
         plt.ylabel("Ground Truth")
@@ -581,6 +595,7 @@ def main(cfg: DictConfig):
             data, target = fetch_model_data(dataset, device=device)
             with torch.no_grad():
                 output = feed_model_data(model, data)
+            attention_scores = []
             if inspect_model:
                 output, attention_scores = output
                 attention_scores = [att_score[:, 0] for att_score in attention_scores]
@@ -624,7 +639,7 @@ def main(cfg: DictConfig):
         print("Test Recall:", recall)
 
         # Plot confusion matrix
-        ticklabels = NEW_ACTION_CLASSES_V2
+        ticklabels = NEW_ACTION_CLASSES
 
         cm = confusion_matrix(y_true, y_pred, labels=list(range(len(ticklabels))))
 
@@ -638,8 +653,8 @@ def main(cfg: DictConfig):
             annot=True,
             fmt="d",
             cmap="Blues",
-            xticklabels=VIS_ACTION_CLASSES_V2,
-            yticklabels=VIS_ACTION_CLASSES_V2,
+            xticklabels=VIS_ACTION_CLASSES,
+            yticklabels=VIS_ACTION_CLASSES,
         )
         plt.xlabel("Prediction")
         plt.ylabel("Ground Truth")
@@ -775,4 +790,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[call-arg]

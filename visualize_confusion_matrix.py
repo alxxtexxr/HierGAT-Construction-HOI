@@ -8,12 +8,15 @@ import numpy as np
 import seaborn as sns
 from omegaconf import DictConfig
 
-from src.constants import VIS_ACTION_CLASSES_V2
+from constants import VIS_ACTION_CLASSES
 
 
 def parse_log_file(log_path: str):
-    with open(log_path, "r") as f:
-        content = f.read()
+    try:
+        with open(log_path) as f:
+            content = f.read()
+    except OSError as e:
+        raise RuntimeError(f"Failed to read log file '{log_path}': {e}") from e
 
     fold_pattern = re.compile(
         r"Fold (\d+):.*?Test video ID: (\w+).*?"
@@ -159,11 +162,11 @@ def main(cfg: DictConfig):
         filename = f"fold{fold_num:02d}_{test_video_id}_confusion_matrix.png"
         output_path = output_dir / filename
 
-        plot_confusion_matrix(cm, VIS_ACTION_CLASSES_V2, str(output_path), fold_num)
+        plot_confusion_matrix(cm, VIS_ACTION_CLASSES, str(output_path), fold_num)
         print(f"Saved: {output_path}")
 
     print(f"\nDone! Output saved to: {output_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[call-arg]

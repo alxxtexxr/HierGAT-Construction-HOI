@@ -27,13 +27,12 @@ import seaborn as sns
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import confusion_matrix
 
-from src.constants import (
-    ACTION_CLASSES_V2,
-    NEW_ACTION_CLASSES_V2,
-    VIS_ACTION_CLASSES_V2,
-    FEATURE_DIRS,
+from constants import (
+    ACTION_CLASSES,
+    NEW_ACTION_CLASSES,
+    VIS_ACTION_CLASSES,
 )
-from src.utils import printh, get_feature_dirs_df
+from utils import printh, get_feature_dirs_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -53,6 +52,8 @@ def main(cfg: DictConfig):
         python evaluate_fold_on_multi_dataset_aggregated.py \
             eval.checkpoint_path=<ckpt.pt> eval.exclude_video_ids=[C0071,C0074]
     """
+
+    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
 
     checkpoint = cfg.eval.get("checkpoint_path", None)
     if not checkpoint:
@@ -91,10 +92,8 @@ def main(cfg: DictConfig):
         cfg.models.metadata.model_name,
         cfg.models.metadata.input_type,
     )
-    batch_size = cfg.models.optimization.batch_size
     misc_dict = cfg.get("misc", default_value={})
     sigma = misc_dict.get("segmentation_loss", {}).get("sigma", 0.0)
-    scaling_strategy = cfg.data.scaling_strategy
     downsampling = cfg.data.downsampling
 
     checkpoint_name = checkpoint_path.stem
@@ -111,14 +110,14 @@ def main(cfg: DictConfig):
     printh("Loading Data", 96)
 
     feature_dirs_df = get_feature_dirs_df(
-        FEATURE_DIRS,
-        ACTION_CLASSES_V2,
-        NEW_ACTION_CLASSES_V2,
+        dataset_dirs,
+        ACTION_CLASSES,
+        NEW_ACTION_CLASSES,
     )
     feature_dirs_df = feature_dirs_df.dropna(subset=['action_label'])
 
     if datasets is None:
-        datasets = [str(p) for p in FEATURE_DIRS]
+        datasets = [str(p) for p in dataset_dirs]
     else:
         # Accept a comma-separated string or a YAML/CLI list
         if isinstance(datasets, str):
@@ -145,13 +144,16 @@ def main(cfg: DictConfig):
     print()
 
     eval_dir = f"{os.getcwd()}/eval/{checkpoint_base}/fold{fold_number:02d}/aggregated_n{len(datasets)}"
-    os.makedirs(eval_dir, exist_ok=True)
+    try:
+        os.makedirs(eval_dir, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError(f"Failed to create evaluation directory '{eval_dir}': {e}") from e
     print(f"Eval directory: {eval_dir}")
     print()
 
     printh("Creating Model", 96)
 
-    num_classes = len(NEW_ACTION_CLASSES_V2)
+    num_classes = len(NEW_ACTION_CLASSES)
     device = "cuda" if torch.cuda.is_available() and cfg.resources.use_gpu else "cpu"
     print(f"Device: {device}")
 
@@ -176,7 +178,7 @@ def main(cfg: DictConfig):
     datasets_skipped = 0
     datasets_errors = 0
     per_dataset_metrics = {}
-    ticklabels = VIS_ACTION_CLASSES_V2
+    ticklabels = VIS_ACTION_CLASSES
 
     for i, dataset in enumerate(datasets, 1):
         dataset_path = Path(dataset)
@@ -196,7 +198,7 @@ def main(cfg: DictConfig):
             ]
 
         if len(test_feature_dirs_df) == 0:
-            print(f"  No valid feature dirs, skipping")
+            print("  No valid feature dirs, skipping")
             datasets_skipped += 1
             continue
 
@@ -204,8 +206,8 @@ def main(cfg: DictConfig):
 
         test_data = create_data(
             test_feature_dirs_df["dir"].tolist(),
-            ACTION_CLASSES_V2,
-            NEW_ACTION_CLASSES_V2,
+            ACTION_CLASSES,
+            NEW_ACTION_CLASSES,
         )
 
         test_loader, _, _ = create_data_loader(
@@ -322,7 +324,7 @@ def main(cfg: DictConfig):
     print("=" * 64)
     print()
 
-    ticklabels = VIS_ACTION_CLASSES_V2
+    ticklabels = VIS_ACTION_CLASSES
     cm = confusion_matrix(y_true, y_pred, labels=list(range(len(ticklabels))))
 
     print("Confusion Matrix:")
@@ -408,7 +410,7 @@ def main(cfg: DictConfig):
         "datasets_skipped": datasets_skipped,
         "datasets_evaluated": datasets_processed,
         "total_samples": total_samples,
-        "class_labels": VIS_ACTION_CLASSES_V2,
+        "class_labels": VIS_ACTION_CLASSES,
         "aggregated_metrics": {
             "accuracy": acc,
             "f1_score": f1,
@@ -419,8 +421,12 @@ def main(cfg: DictConfig):
         "per_dataset_metrics": per_dataset_metrics,
     }
 
-    with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=4)
+    metrics_path = f"{eval_dir}/metrics.json"
+    try:
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=4)
+    except OSError as e:
+        raise RuntimeError(f"Failed to write metrics to '{metrics_path}': {e}") from e
 
     print(f"Metrics saved to {eval_dir}/metrics.json")
     print()
@@ -428,4 +434,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[call-arg]

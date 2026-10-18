@@ -34,13 +34,12 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 
 from predict import match_shape, match_att_shape
-from src.constants import (
-    ACTION_CLASSES_V2,
-    NEW_ACTION_CLASSES_V2,
-    VIS_ACTION_CLASSES_V2,
-    FEATURE_DIRS,
+from constants import (
+    ACTION_CLASSES,
+    NEW_ACTION_CLASSES,
+    VIS_ACTION_CLASSES,
 )
-from src.utils import printh, get_feature_dirs_df, create_data_df
+from utils import printh, get_feature_dirs_df, create_data_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -58,6 +57,8 @@ def main(cfg: DictConfig):
             --config-name config_construction_hoi_lr1e-3 \
             eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
     """
+
+    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
 
     checkpoint = cfg.eval.get("checkpoint_path", None)
     dataset = cfg.eval.get("single_dataset_dir", None)
@@ -111,16 +112,17 @@ def main(cfg: DictConfig):
         cfg.models.metadata.model_name,
         cfg.models.metadata.input_type,
     )
-    batch_size = cfg.models.optimization.batch_size
     misc_dict = cfg.get("misc", default_value={})
     sigma = misc_dict.get("segmentation_loss", {}).get("sigma", 0.0)
-    scaling_strategy = cfg.data.scaling_strategy
     downsampling = cfg.data.downsampling
 
     checkpoint_name = checkpoint_path.stem
     checkpoint_base = re.sub(r"_fold\d+$", "", checkpoint_name)
     eval_dir = f"{os.getcwd()}/eval/{checkpoint_base}/fold{fold_number:02d}/{video_id}"
-    os.makedirs(eval_dir, exist_ok=True)
+    try:
+        os.makedirs(eval_dir, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError(f"Failed to create evaluation directory '{eval_dir}': {e}") from e
     print(f"Eval directory: {eval_dir}")
     print()
 
@@ -135,9 +137,9 @@ def main(cfg: DictConfig):
     printh("Loading Data", 96)
 
     feature_dirs_df = get_feature_dirs_df(
-        FEATURE_DIRS,
-        ACTION_CLASSES_V2,
-        NEW_ACTION_CLASSES_V2,
+        dataset_dirs,
+        ACTION_CLASSES,
+        NEW_ACTION_CLASSES,
     )
     feature_dirs_df = feature_dirs_df.dropna(subset=['action_label'])
 
@@ -155,8 +157,8 @@ def main(cfg: DictConfig):
 
     test_data = create_data(
         test_feature_dirs_df["dir"].tolist(),
-        ACTION_CLASSES_V2,
-        NEW_ACTION_CLASSES_V2,
+        ACTION_CLASSES,
+        NEW_ACTION_CLASSES,
     )
 
     test_loader, _, _ = create_data_loader(
@@ -180,7 +182,7 @@ def main(cfg: DictConfig):
     model_creation_args = cfg.models.parameters
     model_creation_args = {**data_info, **model_creation_args}
     dataset_name = cfg.data.name
-    num_classes = len(NEW_ACTION_CLASSES_V2)
+    num_classes = len(NEW_ACTION_CLASSES)
     model_creation_args["num_classes"] = (num_classes, None)
 
     device = "cuda" if torch.cuda.is_available() and cfg.resources.use_gpu else "cpu"
@@ -221,7 +223,7 @@ def main(cfg: DictConfig):
 
     outputs, targets = [], []
 
-    for i, data in enumerate(test_loader):
+    for data in test_loader:
         data, target = fetch_model_data(data, device=device)
         with torch.no_grad():
             output = feed_model_data(model, data)
@@ -251,7 +253,7 @@ def main(cfg: DictConfig):
     print("=" * 64)
     print()
 
-    ticklabels = VIS_ACTION_CLASSES_V2
+    ticklabels = VIS_ACTION_CLASSES
     cm = confusion_matrix(y_true, y_pred, labels=list(range(len(ticklabels))))
 
     print("Confusion Matrix:")
@@ -335,11 +337,15 @@ def main(cfg: DictConfig):
         "precision": precision,
         "recall": recall,
         "confusion_matrix": cm.tolist(),
-        "class_labels": VIS_ACTION_CLASSES_V2,
+        "class_labels": VIS_ACTION_CLASSES,
     }
 
-    with open(f"{eval_dir}/metrics.json", "w", encoding="utf-8") as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=4)
+    metrics_path = f"{eval_dir}/metrics.json"
+    try:
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, indent=4)
+    except OSError as e:
+        raise RuntimeError(f"Failed to write metrics to '{metrics_path}': {e}") from e
 
     print(f"Metrics saved to {eval_dir}/metrics.json")
     print()
@@ -348,4 +354,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[call-arg]
