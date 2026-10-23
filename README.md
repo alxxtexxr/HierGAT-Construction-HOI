@@ -30,13 +30,13 @@ uv sync
 3. Edit `conf/data/dataset_dirs/construction_hoi.yaml` to replace the placeholder paths with the paths to the downloaded dataset directories under `data/` (one path per dataset).
 
 ## Model Training and Evaluation
-Start training by running:
+Start training and evaluation by running:
 ```bash
 uv run train_eval.py
 ```
 By default, Hydra loads the configuration from `conf/config_construction_hoi.yaml` (along with `conf/models/2G-GCN_construction_hoi.yaml` and `conf/data/construction_hoi.yaml`). 
 
-To customize the training settings, edit these configuration files or override individual parameters from the command line:
+To customize the settings, edit these configuration files or override individual parameters from the command line:
 ```bash
 # Use a different configuration (e.g. one of the variants in conf/)
 uv run train_eval.py --config-name config_construction_hoi_ms0
