@@ -11,7 +11,7 @@ This project is based on the [original HierGAT repository](https://github.com/wj
     ```
 
 ## Setup
-Set up the Python virtual environment and install the project dependencies:
+Create the Python virtual environment and install the project dependencies by running:
 ```bash
 uv sync
 ```
