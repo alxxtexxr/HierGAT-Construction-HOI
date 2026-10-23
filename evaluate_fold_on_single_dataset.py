@@ -18,7 +18,7 @@ from vhoi.data_loading import (
     select_model_data_fetcher,
 )
 from vhoi.data_loading_construction_hoi import create_data, create_data_loader
-from vhoi.losses_construction_hoi import (
+from vhoi.losses import (
     select_loss,
     decide_num_main_losses,
     select_loss_types,

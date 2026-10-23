@@ -16,7 +16,7 @@ from vhoi.data_loading import (
     select_model_data_fetcher,
 )
 from vhoi.data_loading_construction_hoi import create_data, create_data_loader
-from vhoi.losses_construction_hoi import (
+from vhoi.losses import (
     decide_num_main_losses,
 )
 from vhoi.models_construction_hoi import TGGCN

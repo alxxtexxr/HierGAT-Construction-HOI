@@ -1,11 +1,25 @@
+"""Loss selection for the (Two-Graph) GCN models.
+
+Combined from ``losses.py`` and ``losses_construction_hoi.py``: the latter was a
+superset of the former (it adds optional focal-loss support via
+``pyrutils.torch.losses_custom_v2`` and accepts a list of loss functions).
+All callers are expected to import from ``vhoi.losses``.
+"""
+
 from functools import partial
 
 import torch.nn.functional as F
 
-from pyrutils.torch.losses import multi_task_loss, binary_cross_entropy_loss, budget_loss
+from pyrutils.torch.losses_custom_v2 import (
+    binary_cross_entropy_loss,
+    budget_loss,
+    focal_loss_for_nll,
+    multi_task_loss,
+)
 
 
-def select_loss(model_name: str, model_input_type: str, dataset_name: str, cfg):
+def select_loss(model_name: str, model_input_type: str, dataset_name: str, cfg,
+                use_focal_loss: bool = False, focal_gamma: float = 2.0):
     if model_name == '2G-GCN':
         misc = cfg.get('misc', default_value={})
         # Budget
@@ -38,32 +52,40 @@ def select_loss(model_name: str, model_input_type: str, dataset_name: str, cfg):
             weight_val = 1.0
         anticipation_loss_weight = misc.get('anticipation_loss_weight', 1.0)
         fl_loss_weight = misc.get('first_level_loss_weight', 0.0)
+        # Select classification loss function (focal or standard NLL)
+        if use_focal_loss:
+            classification_loss = partial(focal_loss_for_nll, gamma=focal_gamma)
+            loss_prefix = 'FL'
+        else:
+            classification_loss = F.nll_loss
+            loss_prefix = 'NLL'
         if dataset_name == 'cad120':
             weight += [fl_loss_weight] * 4
             weight += [weight_val, anticipation_loss_weight, weight_val, anticipation_loss_weight]
             criterion = partial(multi_task_loss,
-                                loss_functions=(budget_loss, budget_loss,
+                                loss_functions=[budget_loss, budget_loss,
                                                 binary_cross_entropy_loss, binary_cross_entropy_loss,
-                                                F.nll_loss, F.nll_loss, F.nll_loss, F.nll_loss,
-                                                F.nll_loss, F.nll_loss, F.nll_loss, F.nll_loss),
+                                                classification_loss, classification_loss, classification_loss, classification_loss,
+                                                classification_loss, classification_loss, classification_loss, classification_loss],
                                 weight=weight)
             loss_names = ['B_HS', 'B_OS', 'BCE_HS', 'BCE_OS',
-                          'NLL_SAR_F', 'NLL_SAP_F', 'NLL_OAR_F', 'NLL_OAP_F',
-                          'NLL_SAR', 'NLL_SAP', 'NLL_OAR', 'NLL_OAP']
+                          f'{loss_prefix}_SAR_F', f'{loss_prefix}_SAP_F', f'{loss_prefix}_OAR_F', f'{loss_prefix}_OAP_F',
+                          f'{loss_prefix}_SAR', f'{loss_prefix}_SAP', f'{loss_prefix}_OAR', f'{loss_prefix}_OAP']
         else:
             weight += [fl_loss_weight] * 2
             weight += [weight_val, anticipation_loss_weight]
             criterion = partial(multi_task_loss,
-                                loss_functions=(budget_loss, binary_cross_entropy_loss,
-                                                F.nll_loss, F.nll_loss,
-                                                F.nll_loss, F.nll_loss),
+                                loss_functions=[budget_loss, binary_cross_entropy_loss,
+                                                classification_loss, classification_loss,
+                                                classification_loss, classification_loss],
                                 weight=weight)
-            loss_names = ['B_HS', 'BCE_HS', 'NLL_SAR_F', 'NLL_SAP_F', 'NLL_SAR', 'NLL_SAP']
+            loss_names = ['B_HS', 'BCE_HS', f'{loss_prefix}_SAR_F', f'{loss_prefix}_SAP_F',
+                          f'{loss_prefix}_SAR', f'{loss_prefix}_SAP']
     elif model_name == 'bimanual_baseline':
-        criterion = partial(multi_task_loss, loss_functions=(F.nll_loss,))
+        criterion = partial(multi_task_loss, loss_functions=[F.nll_loss])
         loss_names = ['NLL_SAR']
     elif model_name == 'cad120_baseline':
-        criterion = partial(multi_task_loss, loss_functions=(F.nll_loss, F.nll_loss))
+        criterion = partial(multi_task_loss, loss_functions=[F.nll_loss, F.nll_loss])
         loss_names = ['NLL_SAR', 'NLL_OAR']
     else:
         raise ValueError(f'Unknown model {model_name}')
