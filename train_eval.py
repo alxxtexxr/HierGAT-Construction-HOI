@@ -209,86 +209,48 @@ def main(cfg: DictConfig):
             df.loc[df["base_dir"] == base_dir, "split"] = "train"
             group_df = group_df.sort_values("start_fid")
 
-            min_fid = 0
-            max_fid = group_df["end_fid"].max()
-            duration = max_fid - min_fid
-            try:
-                val_duration = int(duration * val_fraction)
-            except (TypeError, ValueError) as e:
-                raise RuntimeError(
-                    f"Failed to compute validation duration from duration={duration} "
-                    f"and val_fraction={val_fraction}: {e}"
-                ) from e
+            n_slices = len(group_df)
+            if n_slices >= 2:
+                try:
+                    n_val = max(
+                        1, min(int(round(n_slices * val_fraction)), n_slices - 1)
+                    )
+                except (TypeError, ValueError) as e:
+                    raise RuntimeError(
+                        f"Failed to compute validation size from n_slices={n_slices} "
+                        f"and val_fraction={val_fraction}: {e}"
+                    ) from e
 
-            # Determine validation and testing FID ranges
-            assert duration // 2 >= val_duration + val_duration, (
-                f"Duration ({duration}) should be at least twice the validation duration ({val_duration})!"
-            )
-            # val_start_fid = random.randrange(0, duration//2) # Sample a random FID from the start to the middle
-            val_start_fid = random.randrange(
-                duration // 2, duration - val_duration - val_duration
-            )  # Sample a random FID from the middle to the end
-            val_end_fid = val_start_fid + val_duration - 1
-            test_start_fid = val_start_fid + val_duration
-            test_end_fid = test_start_fid + val_duration - 1
+                # Randomly position a contiguous block of n_val slices in time order
+                val_start_idx = random.randrange(0, n_slices - n_val + 1)
+                val_indices = group_df.index[val_start_idx:val_start_idx + n_val]
 
-            print(
-                f"Validation FID range: {val_start_fid}-{val_end_fid}, length: {val_end_fid - val_start_fid + 1}"
-            )
-            print(
-                f"Testing FID range: {test_start_fid}-{test_end_fid}, length: {test_end_fid - test_start_fid + 1}"
-            )
-            print()
+                print(
+                    f"Validation block: {n_val} of {n_slices} slices at time positions "
+                    f"{val_start_idx}-{val_start_idx + n_val - 1} "
+                    f"(FIDs {group_df['start_fid'].iloc[val_start_idx]:.0f}-"
+                    f"{group_df['end_fid'].iloc[val_start_idx + n_val - 1]:.0f})"
+                )
+                print()
 
-            # Swap validation and testing FID ranges if validation is larger than testing
+                # Slices are atomic samples; move the chosen block to validation
+                df.loc[val_indices, "split"] = "val"
+            else:
+                print(
+                    f"Only {n_slices} labeled slice(s) in this video -> keeping all as "
+                    "training (cannot temporally split)."
+                )
+                print()
+
             base_dir_cond = df["base_dir"] == base_dir
-            val_len = len(
-                df.loc[
-                    base_dir_cond
-                    & (df["start_fid"] >= val_start_fid)
-                    & (df["end_fid"] <= val_end_fid)
-                ]
-            )
-            test_len = len(
-                df.loc[
-                    base_dir_cond
-                    & (df["start_fid"] >= test_start_fid)
-                    & (df["end_fid"] <= test_end_fid)
-                ]
-            )
-            if val_len > test_len:
-                tmp_start_fid = test_start_fid
-                tmp_end_fid = test_end_fid
-                test_start_fid = val_start_fid
-                test_end_fid = val_end_fid
-                val_start_fid = tmp_start_fid
-                val_end_fid = tmp_end_fid
-
-            # Assign splits
-            df.loc[
-                base_dir_cond
-                & (df["start_fid"] >= val_start_fid)
-                & (df["end_fid"] <= val_end_fid),
-                "split",
-            ] = "val"
-            # df.loc[base_dir_cond & (df['start_fid'] >= test_start_fid) & (df['end_fid'] <= test_end_fid), 'split'] = 'test'
-            df.loc[base_dir_cond & (df["split"].isna()), "split"] = "train"
-
             train_group_df = df[base_dir_cond & (df["split"] == "train")]
             val_group_df = df[base_dir_cond & (df["split"] == "val")]
-            test_group_df = df[base_dir_cond & (df["split"] == "test")]
 
-            try:
-                assert (
-                    len(test_group_df) > len(val_group_df) or len(test_group_df) == 0
-                ) and len(df[base_dir_cond]) == len(train_group_df) + len(
-                    val_group_df
-                ) + len(test_group_df)
-            except AssertionError:
+            if len(df[base_dir_cond]) != len(train_group_df) + len(val_group_df):
                 raise AssertionError(
                     f'Invalid split sizes: train={len(train_group_df)}, val={len(val_group_df)}, '
-                    f'test={len(test_group_df)}, total={len(df[base_dir_cond])}'
-                ) from None
+                    f'total={len(df[base_dir_cond])}'
+                )
 
             print("Training action label info:")
             print(train_group_df["action_label"].value_counts())
@@ -299,8 +261,7 @@ def main(cfg: DictConfig):
             print("Total:", len(val_group_df))
             print()
             print("Testing action label info:")
-            print(test_group_df["action_label"].value_counts())
-            print("Total:", len(test_group_df))
+            print("(not applicable - the k-fold test video is evaluated at the end)")
             print()
 
         # Create train, validation, and test dataframes
@@ -335,6 +296,26 @@ def main(cfg: DictConfig):
             NEW_ACTION_CLASSES if "NEW_ACTION_CLASSES" in globals() else None,
         )
 
+        # Guard against degenerate splits (empty train/val/test sets)
+        if len(train_data[0]) == 0:
+            raise RuntimeError(
+                "Training set is empty! Add more labeled feature slices or reduce "
+                "k_fold (the k-fold test video leaves no train data)."
+            )
+        if len(test_data[0]) == 0:
+            raise RuntimeError(
+                f"Test set is empty for fold video '{test_video_id}'! "
+                "No labeled feature slices available in its feature directory."
+            )
+        val_has_data = len(val_data[0]) > 0
+        if not val_has_data:
+            print(
+                "WARNING: Validation set is empty (no train video has >= 2 labeled slices "
+                "to hold out). Training without validation; early stopping and validation "
+                "metrics will be skipped for this fold."
+            )
+            print()
+
         # Create data loaders
         train_loader, scalers, _ = create_data_loader(
             train_data[0],
@@ -352,22 +333,26 @@ def main(cfg: DictConfig):
             downsampling=downsampling,
             num_workers=num_workers,
         )
-        val_loader, _, _ = create_data_loader(
-            val_data[0],
-            val_data[1],
-            val_data[2],
-            val_data[3],
-            val_data[4],
-            val_data[5],
-            val_data[6],
-            model_name,
-            batch_size=len(val_data[0]),
-            shuffle=False,
-            scalers=scalers,
-            sigma=sigma,
-            downsampling=downsampling,
-            num_workers=num_workers,
-        )
+        val_loader = None
+        if val_has_data:
+            val_loader, _, _ = create_data_loader(
+                val_data[0],
+                val_data[1],
+                val_data[2],
+                val_data[3],
+                val_data[4],
+                val_data[5],
+                val_data[6],
+                model_name,
+                batch_size=len(val_data[0]),
+                shuffle=False,
+                scalers=scalers,
+                sigma=sigma,
+                downsampling=downsampling,
+                num_workers=num_workers,
+            )
+        else:
+            print("Skipping validation DataLoader creation (empty validation set).")
         test_loader, _, _ = create_data_loader(
             *test_data,
             model_name,
@@ -477,112 +462,125 @@ def main(cfg: DictConfig):
             best_train_loss = checkpoint['train_losses'][best_epoch_idx][0]
         else:
             best_train_loss = checkpoint['train_losses'][-1][0]
-        if checkpoint['val_losses'] and best_epoch_idx < len(checkpoint['val_losses']):
-            best_val_loss = checkpoint['val_losses'][best_epoch_idx][0]
+        if checkpoint.get('val_losses'):
+            if best_epoch_idx < len(checkpoint['val_losses']):
+                best_val_loss = checkpoint['val_losses'][best_epoch_idx][0]
+            else:
+                best_val_loss = checkpoint['val_losses'][-1][0]
         else:
-            best_val_loss = checkpoint['val_losses'][-1][0]
+            best_val_loss = float('nan')  # no validation data for this fold
         best_train_loss_list.append(best_train_loss)
         best_val_loss_list.append(best_val_loss)
         print(f"Best epoch train loss: {best_train_loss:.4f}")
         print(f"Best epoch val loss:   {best_val_loss:.4f}")
 
-        # Validation Evaluation
-        printh("Validation Evaluation", 96)
-        print("Test video ID:", test_video_id)
-        print()
-
         model.eval()
-
         inspect_model = False
-        val_outputs, val_targets, val_attentions = [], [], []
 
-        for i, dataset in enumerate(val_loader):
-            data, target = fetch_model_data(dataset, device=device)
-            with torch.no_grad():
-                output = feed_model_data(model, data)
-            attention_scores = []
-            if inspect_model:
-                output, attention_scores = output
-                attention_scores = [att_score[:, 0] for att_score in attention_scores]
-            if num_main_losses is not None:
-                output = output[-num_main_losses:]
-                target = target[-num_main_losses:]
-            if downsampling > 1:
-                for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
-                    if out.ndim != 4:
-                        raise RuntimeError(
-                            f"Number of dimensions for output is {out.ndim}"
-                        )
-                    out = torch.repeat_interleave(out, repeats=downsampling, dim=-2)
-                    out = match_shape(out, tgt)
-                    output[i] = out
+        if val_loader is not None:
+            # Validation Evaluation
+            printh("Validation Evaluation", 96)
+            print("Test video ID:", test_video_id)
+            print()
+
+            val_outputs, val_targets, val_attentions = [], [], []
+
+            for i, dataset in enumerate(val_loader):
+                data, target = fetch_model_data(dataset, device=device)
+                with torch.no_grad():
+                    output = feed_model_data(model, data)
+                attention_scores = []
                 if inspect_model:
-                    a_target = target[0]
-                    attention_scores = [
-                        torch.repeat_interleave(att_score, repeats=downsampling, dim=-2)
-                        for att_score in attention_scores
-                    ]
-                    attention_scores = [
-                        match_att_shape(att_score, a_target)
-                        for att_score in attention_scores
-                    ]
-                    val_attentions.append(attention_scores)
-            val_outputs += output
-            val_targets += target
+                    output, attention_scores = output
+                    attention_scores = [att_score[:, 0] for att_score in attention_scores]
+                if num_main_losses is not None:
+                    output = output[-num_main_losses:]
+                    target = target[-num_main_losses:]
+                if downsampling > 1:
+                    for i, (out, tgt) in enumerate(zip(output, target, strict=True)):
+                        if out.ndim != 4:
+                            raise RuntimeError(
+                                f"Number of dimensions for output is {out.ndim}"
+                            )
+                        out = torch.repeat_interleave(out, repeats=downsampling, dim=-2)
+                        out = match_shape(out, tgt)
+                        output[i] = out
+                    if inspect_model:
+                        a_target = target[0]
+                        attention_scores = [
+                            torch.repeat_interleave(att_score, repeats=downsampling, dim=-2)
+                            for att_score in attention_scores
+                        ]
+                        attention_scores = [
+                            match_att_shape(att_score, a_target)
+                            for att_score in attention_scores
+                        ]
+                        val_attentions.append(attention_scores)
+                val_outputs += output
+                val_targets += target
 
-        val_y_pred = torch.argmax(val_outputs[0], dim=1).cpu().numpy()
-        val_y_true = val_targets[0].squeeze(-1).mode(dim=1).values.cpu().numpy()
+            val_y_pred = torch.argmax(val_outputs[0], dim=1).cpu().numpy()
+            val_y_true = val_targets[0].squeeze(-1).mode(dim=1).values.cpu().numpy()
 
-        val_acc = accuracy_score(val_y_true, val_y_pred)
-        val_f1 = f1_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
-        val_precision = precision_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
-        val_recall = recall_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+            val_acc = accuracy_score(val_y_true, val_y_pred)
+            val_f1 = f1_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+            val_precision = precision_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
+            val_recall = recall_score(val_y_true, val_y_pred, average="weighted", zero_division=0)
 
-        print("Validation Accuracy:", val_acc)
-        print("Validation F1 score:", val_f1)
-        print("Validation Precision:", val_precision)
-        print("Validation Recall:", val_recall)
+            print("Validation Accuracy:", val_acc)
+            print("Validation F1 score:", val_f1)
+            print("Validation Precision:", val_precision)
+            print("Validation Recall:", val_recall)
 
-        # Plot confusion matrix
-        ticklabels = NEW_ACTION_CLASSES
+            # Plot confusion matrix
+            ticklabels = NEW_ACTION_CLASSES
 
-        val_cm = confusion_matrix(val_y_true, val_y_pred, labels=list(range(len(ticklabels))))
+            val_cm = confusion_matrix(val_y_true, val_y_pred, labels=list(range(len(ticklabels))))
 
-        print("Validation Confusion matrix:")
-        print(val_cm)
-        print()
+            print("Validation Confusion matrix:")
+            print(val_cm)
+            print()
 
-        plt.figure(figsize=(8, 6))
-        sns.heatmap(
-            val_cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            xticklabels=VIS_ACTION_CLASSES,
-            yticklabels=VIS_ACTION_CLASSES,
-        )
-        plt.xlabel("Prediction")
-        plt.ylabel("Ground Truth")
-        plt.title("Validation Confusion Matrix")
+            plt.figure(figsize=(8, 6))
+            sns.heatmap(
+                val_cm,
+                annot=True,
+                fmt="d",
+                cmap="Blues",
+                xticklabels=VIS_ACTION_CLASSES,
+                yticklabels=VIS_ACTION_CLASSES,
+            )
+            plt.xlabel("Prediction")
+            plt.ylabel("Ground Truth")
+            plt.title("Validation Confusion Matrix")
 
-        # Save confusion matrix
-        val_cm_dir = f"{eval_dir}/val_cm"
-        try:
-            os.makedirs(val_cm_dir, exist_ok=True)
-        except OSError as e:
-            raise RuntimeError(f"Failed to create val_cm directory '{val_cm_dir}': {e}") from e
-        plt.savefig(f"{val_cm_dir}/fold{fold_str}.png")
-        plt.close()
+            # Save confusion matrix
+            val_cm_dir = f"{eval_dir}/val_cm"
+            try:
+                os.makedirs(val_cm_dir, exist_ok=True)
+            except OSError as e:
+                raise RuntimeError(f"Failed to create val_cm directory '{val_cm_dir}': {e}") from e
+            plt.savefig(f"{val_cm_dir}/fold{fold_str}.png")
+            plt.close()
 
-        # Store validation metrics
-        val_acc_list.append(val_acc)
-        val_f1_list.append(val_f1)
-        val_precision_list.append(val_precision)
-        val_recall_list.append(val_recall)
-        val_cm_list.append(val_cm)
+            # Store validation metrics
+            val_acc_list.append(val_acc)
+            val_f1_list.append(val_f1)
+            val_precision_list.append(val_precision)
+            val_recall_list.append(val_recall)
+            val_cm_list.append(val_cm)
 
-        del val_outputs, val_targets
-        torch.cuda.empty_cache()
+            del val_outputs, val_targets
+            torch.cuda.empty_cache()
+        else:
+            # No validation data: keep per-fold metric lists aligned (NaN / empty CM sentinels)
+            val_acc_list.append(float('nan'))
+            val_f1_list.append(float('nan'))
+            val_precision_list.append(float('nan'))
+            val_recall_list.append(float('nan'))
+            val_cm_list.append(np.zeros((len(VIS_ACTION_CLASSES), len(VIS_ACTION_CLASSES)), dtype=int))
+            print('Skipping validation evaluation (empty validation set).')
+            print()
 
         # Test Evaluation
         printh("Test Evaluation", 96)
