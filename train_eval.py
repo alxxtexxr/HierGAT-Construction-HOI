@@ -18,7 +18,7 @@ from vhoi.data_loading import (
     select_model_data_fetcher,
 )
 from vhoi.data_loading_construction_hoi import create_data, create_data_loader
-from vhoi.losses_construction_hoi import (
+from vhoi.losses import (
     select_loss,
     decide_num_main_losses,
     select_loss_types,
@@ -50,10 +50,10 @@ def main(cfg: DictConfig):
     The configuration is loaded by Hydra from conf/config_construction_hoi.yaml.
     Usage examples:
 
-        python train_construction_hoi.py
-        python train_construction_hoi.py --config-name config_construction_hoi_ms0
-        python train_construction_hoi.py train.k_fold=10 train.selected_folds=[1,3]
-        python train_construction_hoi.py models.optimization.epochs=20 models.optimization.batch_size=64
+        python train_eval.py
+        python train_eval.py --config-name config_construction_hoi_ms0
+        python train_eval.py train.k_fold=10 train.selected_folds=[1,3]
+        python train_eval.py models.optimization.epochs=20 models.optimization.batch_size=64
     """
 
     dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]

@@ -32,36 +32,38 @@ uv sync
 ## Model Training and Evaluation
 Start training by running:
 ```bash
-uv run train_construction_hoi.py
+uv run train_eval.py
 ```
 By default, Hydra loads the configuration from `conf/config_construction_hoi.yaml` (along with `conf/models/2G-GCN_construction_hoi.yaml` and `conf/data/construction_hoi.yaml`). 
 
 To customize the training settings, edit these configuration files or override individual parameters from the command line:
 ```bash
 # Use a different configuration (e.g. one of the variants in conf/)
-uv run train_construction_hoi.py --config-name config_construction_hoi_ms0
+uv run train_eval.py --config-name config_construction_hoi_ms0
 
 # Override training settings
-uv run train_construction_hoi.py \
+uv run train_eval.py \
     train.k_fold=10 \
     train.selected_folds=[1,3] \
     train.seed=123
 
 # Override model or optimization settings
-uv run train_construction_hoi.py \
+uv run train_eval.py \
     models.optimization.epochs=20 \
     models.optimization.batch_size=64
-```
-
-## Visualization
-Generate per-fold confusion matrices from a training log:
-```
-uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
 ```
 
 ## Advanced Usage
 <details>
 <summary>Click to expand</summary>
+
+### Visualization
+
+#### Visualze Confusion Matrix
+Generate per-fold confusion matrices from a training log:
+```
+uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
+```
   
 ### Fold Evaluation
 
