@@ -1,7 +1,10 @@
-# Copy dataset_dirs/construction_hoi.example.yaml to construction_hoi.yaml
-# and fill in local paths; the active file is git-ignored.
+# Root directory containing the datasets, relative to the project root.
+# Each dataset lives in a subdirectory of `data_dir` and has a `features/`
+# directory, e.g. data/J1_2026_full_temporal_3s/features. Dataset directories
+# are discovered automatically, so there is no need to list them explicitly.
+data_dir: data
+
 defaults:
-  - dataset_dirs@_here_: construction_hoi
   - _self_
 
 name: mphoi # Dummy data name

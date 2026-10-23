@@ -10,6 +10,19 @@ def printh(h, n=128):
     print(h)
     print("=" * n)
 
+
+def get_dataset_dirs(data_dir):
+    """Return the dataset feature directories under `data_dir`.
+
+    Each dataset lives in a subdirectory of `data_dir` and contains a
+    `features/` directory, e.g. `data/J1_2026_full_temporal_3s/features`.
+    Directories are discovered automatically, so there is no need to list
+    them explicitly.
+    """
+    return sorted(
+        p for p in Path(data_dir).glob("*/features") if p.is_dir()
+    )
+
 def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
     feature_dir_dicts = []
     for dirs in feature_dirs:

@@ -39,7 +39,7 @@ from constants import (
     NEW_ACTION_CLASSES,
     VIS_ACTION_CLASSES,
 )
-from utils import printh, get_feature_dirs_df, create_data_df
+from utils import printh, get_dataset_dirs, get_feature_dirs_df, create_data_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -58,7 +58,7 @@ def main(cfg: DictConfig):
             eval.checkpoint_path=<ckpt.pt> eval.single_dataset_dir=<features_dir>
     """
 
-    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
+    dataset_dirs = get_dataset_dirs(cfg.data.data_dir)
 
     checkpoint = cfg.eval.get("checkpoint_path", None)
     dataset = cfg.eval.get("single_dataset_dir", None)

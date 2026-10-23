@@ -32,7 +32,7 @@ from constants import (
     NEW_ACTION_CLASSES,
     VIS_ACTION_CLASSES,
 )
-from utils import printh, get_feature_dirs_df
+from utils import printh, get_dataset_dirs, get_feature_dirs_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -53,7 +53,7 @@ def main(cfg: DictConfig):
             eval.checkpoint_path=<ckpt.pt> eval.exclude_video_ids=[C0071,C0074]
     """
 
-    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
+    dataset_dirs = get_dataset_dirs(cfg.data.data_dir)
 
     checkpoint = cfg.eval.get("checkpoint_path", None)
     if not checkpoint:

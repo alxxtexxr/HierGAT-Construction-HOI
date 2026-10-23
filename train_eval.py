@@ -38,7 +38,7 @@ from constants import (
     NEW_ACTION_CLASSES,
     VIS_ACTION_CLASSES,
 )
-from utils import printh, get_feature_dirs_df, create_data_df
+from utils import printh, get_dataset_dirs, get_feature_dirs_df, create_data_df
 
 torch.multiprocessing.set_sharing_strategy("file_system")  # Avoid shared memory crashes
 
@@ -56,7 +56,7 @@ def main(cfg: DictConfig):
         python train_eval.py models.optimization.epochs=20 models.optimization.batch_size=64
     """
 
-    dataset_dirs = [Path(path) for path in cfg.data.dataset_dirs]
+    dataset_dirs = get_dataset_dirs(cfg.data.data_dir)
 
     # Read the training-run settings from the `train` section of the config.
     seed = cfg.train.seed

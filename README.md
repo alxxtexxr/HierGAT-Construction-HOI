@@ -22,12 +22,10 @@ uv sync
    mkdir -p data
    ```
 
-2. Create `conf/data/dataset_dirs/construction_hoi.yaml` by copying the example configuration file:
-    ```bash
-    cp conf/data/dataset_dirs/construction_hoi.example.yaml conf/data/dataset_dirs/construction_hoi.yaml
-    ```
-
-3. Edit `conf/data/dataset_dirs/construction_hoi.yaml` to replace the placeholder paths with the paths to the downloaded dataset directories under `data/` (one path per dataset).
+2. Place each dataset in a subdirectory of `data/` so that its features live at
+   `data/<dataset_name>/features`. Dataset directories are discovered
+   automatically via `data_dir: data` in `conf/data/construction_hoi.yaml`;
+   there is no need to list them explicitly.
 
 ## Model Training and Evaluation
 Start training and evaluation by running:

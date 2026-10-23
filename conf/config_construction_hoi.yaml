@@ -30,7 +30,7 @@ eval:
   # (required by evaluate_fold_on_single_dataset.py)
   single_dataset_dir: null
   # List of dataset paths (aggregated script).
-  # null = all data.dataset_dirs
+  # null = all datasets discovered under data.data_dir
   multi_dataset_dirs: null
   # List of video IDs to exclude (aggregated script)
   exclude_video_ids: null

@@ -6,6 +6,8 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 
+from utils import get_dataset_dirs
+
 
 @hydra.main(config_path="conf", config_name="config_construction_hoi", version_base=None)
 def main(cfg: DictConfig):
@@ -39,7 +41,7 @@ def main(cfg: DictConfig):
     checkpoint_name = checkpoint_path.stem
     checkpoint_base = re.sub(r"_fold\d+$", "", checkpoint_name)
 
-    datasets = [str(p) for p in cfg.data.dataset_dirs]
+    datasets = [str(p) for p in get_dataset_dirs(cfg.data.data_dir)]
 
     total = len(datasets)
     skipped = 0
