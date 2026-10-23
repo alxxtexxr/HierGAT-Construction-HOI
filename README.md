@@ -57,9 +57,7 @@ uv run train_eval.py \
 <details>
 <summary>Click to expand</summary>
 
-### Visualization
-
-#### Visualze Confusion Matrix
+### Confusion Matrix Visualization
 Generate per-fold confusion matrices from a training log:
 ```
 uv run visualize_confusion_matrix.py visualize.log_path=<train.log>
