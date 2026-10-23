@@ -3,7 +3,7 @@
 This project is based on the [original HierGAT repository](https://github.com/wjx1198/HierGAT).
 
 ## Requirements
-- CUDA 11.8 (primary setup on Linux; CPU and MPS are also supported on other platforms)
+- CUDA ≥ 11.8 (the primary setup targets Linux; CPU and MPS are also supported on other platforms)
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) for Python and dependency management. If `pip` is installed, you can install `uv` by running:
     ```bash
