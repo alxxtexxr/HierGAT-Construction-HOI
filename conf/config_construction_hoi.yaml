@@ -16,7 +16,7 @@ train:
   # Fold numbers (1-based) to run, e.g. [1, 3, 5]. null = all folds
   selected_folds: null
   # Minimum epochs before early stopping can activate
-  min_epochs: 10
+  min_epochs: 1
   # Early stopping patience (null = disabled)
   early_stopping_patience: null
   # Number of data loading workers

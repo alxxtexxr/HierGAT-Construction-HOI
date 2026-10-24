@@ -30,7 +30,7 @@ parameters:
 optimization:
   batch_size: 32  # custom, original: 8, mphoi:8; cad120:16; bimanual: 32
   clip_gradient_at: 0.0
-  epochs: 10  # custom, original: 40, cad120 & mphoi:40; bimanual: 60
+  epochs: 30  # custom, original: 40, cad120 & mphoi:40; bimanual: 60
   learning_rate: 1e-4  # mphoi:1e-4; cad120 & bimanual:1e-3
   val_fraction: 0.1
 misc:
