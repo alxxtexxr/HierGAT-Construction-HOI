@@ -29,3 +29,8 @@ explicit = true
 torch = [
     { index = "pytorch-cu118", marker = "sys_platform == 'linux'" },
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+]
