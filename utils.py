@@ -23,7 +23,7 @@ def get_dataset_dirs(data_dir):
         p for p in Path(data_dir).glob("*/features") if p.is_dir()
     )
 
-def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
+def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None) -> "pd.DataFrame":
     feature_dir_dicts = []
     for dirs in feature_dirs:
         for dir in dirs.iterdir():
@@ -47,11 +47,11 @@ def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None):
                 'is_interpolated': is_interpolated,
             })
     feature_dirs_df = pd.DataFrame(feature_dir_dicts)
-    feature_dirs_df = feature_dirs_df[feature_dirs_df['action_label'] != -1] # remove rows where action_label == -1
+    feature_dirs_df = feature_dirs_df.loc[feature_dirs_df['action_label'] != -1]  # remove rows where action_label == -1
     return feature_dirs_df
 
 def create_data_df(feature_dirs, action_classes, new_action_classes=None,
-                   downsampling: int = 1, test_data: bool = False):
+                   downsampling: int = 1, test_data: bool = False) -> "pd.DataFrame":
     base_dirs = []
     dirs = []
     start_fids = []

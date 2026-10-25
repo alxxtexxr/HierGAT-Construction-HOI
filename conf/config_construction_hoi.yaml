@@ -18,7 +18,14 @@ train:
   # Minimum epochs before early stopping can activate
   min_epochs: 1
   # Early stopping patience (null = disabled)
-  early_stopping_patience: null
+  early_stopping_patience: 5
+  # Metric used for early stopping and best-checkpoint selection:
+  #   val_loss            validation loss, lower is better (default)
+  #   val_f1              weighted F1 score on validation set, higher is better
+  #   val_accuracy        accuracy on validation set, higher is better
+  #   val_min_per_class_f1  minimum per-class F1, higher is better
+  # Any value set here is also passed through to pyrutils train() and validated there.
+  early_stopping_metric: val_loss
   # Number of data loading workers
   num_workers: 4
 # Evaluation settings, used by evaluate_fold_on_single_dataset.py and

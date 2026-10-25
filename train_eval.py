@@ -65,6 +65,7 @@ def main(cfg: DictConfig):
                                                                    # null = run all folds. Example: [1, 3, 5]
     min_epochs = cfg.train.get("min_epochs", 10)            # Minimum epochs before early stopping can activate
     early_stopping_patience = cfg.train.get("early_stopping_patience", None)  # null = disabled
+    early_stopping_metric = cfg.train.get("early_stopping_metric", "val_loss")  # 'val_loss' | 'val_f1' | 'val_accuracy' | 'val_min_per_class_f1'
     num_workers = cfg.train.get("num_workers", 4)          # Number of data loading workers
 
     # Set random seed
@@ -434,6 +435,7 @@ def main(cfg: DictConfig):
             checkpoint_name=checkpoint_name,
             early_stopping_patience=early_stopping_patience,
             min_epochs=min_epochs,
+            early_stopping_metric=early_stopping_metric,
         )
 
         print()
@@ -450,7 +452,9 @@ def main(cfg: DictConfig):
                 include_timestamp=False,
             )
 
-        # Load the BEST model weights from checkpoint (based on validation loss)
+        # Load the BEST model weights from checkpoint (selected by the early stopping
+        # metric: val_loss by default, or val_f1/val_accuracy/val_min_per_class_f1 if
+        # configured via train.early_stopping_metric).
         # The train() function saves the best model in checkpoint['model_state_dict']
         best_epoch = checkpoint.get('epoch', 0)
         print(f"\nLoading best model from epoch {best_epoch}...")
@@ -473,6 +477,10 @@ def main(cfg: DictConfig):
         best_val_loss_list.append(best_val_loss)
         print(f"Best epoch train loss: {best_train_loss:.4f}")
         print(f"Best epoch val loss:   {best_val_loss:.4f}")
+        if early_stopping_metric != "val_loss" and checkpoint.get("best_metric_value") is not None:
+            best_metric_value = checkpoint["best_metric_value"]
+            if np.isfinite(best_metric_value):
+                print(f"Best epoch {early_stopping_metric}: {best_metric_value:.4f}")
 
         model.eval()
         inspect_model = False
