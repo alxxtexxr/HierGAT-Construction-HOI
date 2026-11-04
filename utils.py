@@ -14,13 +14,14 @@ def printh(h, n=128):
 def get_dataset_dirs(data_dir):
     """Return the dataset feature directories under `data_dir`.
 
-    Each dataset lives in a subdirectory of `data_dir` and contains a
-    `features/` directory, e.g. `data/J1_2026_full_temporal_3s/features`.
-    Directories are discovered automatically, so there is no need to list
-    them explicitly.
+    Datasets can be nested arbitrarily deep (e.g. `data/id/J1_2026_full_temporal_3s/features`
+    or `data/tw/C0071_full_MP4_anno_for_labelling_done_faridz_full_temporal_3s/features`);
+    discovery is recursive, so any subdirectory containing a `features/`
+    directory is treated as a dataset. Directories are discovered
+    automatically, so there is no need to list them explicitly.
     """
     return sorted(
-        p for p in Path(data_dir).glob("*/features") if p.is_dir()
+        p for p in Path(data_dir).rglob("*/features") if p.is_dir()
     )
 
 def get_feature_dirs_df(feature_dirs, action_classes, new_action_classes=None) -> "pd.DataFrame":

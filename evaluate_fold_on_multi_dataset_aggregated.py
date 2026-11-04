@@ -274,9 +274,9 @@ def main(cfg: DictConfig):
         per_dataset_metrics[video_id] = {
             "sample_count": int(len(y_true_ds)),
             "accuracy": float(accuracy_score(y_true_ds, y_pred_ds)),
-            "f1_score": float(f1_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
-            "precision": float(precision_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
-            "recall": float(recall_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),
+            "f1_score": float(f1_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),  # pyright: ignore[reportArgumentType]
+            "precision": float(precision_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),  # pyright: ignore[reportArgumentType]
+            "recall": float(recall_score(y_true_ds, y_pred_ds, average="weighted", zero_division=0)),  # pyright: ignore[reportArgumentType]
             "confusion_matrix": confusion_matrix(y_true_ds, y_pred_ds, labels=list(range(len(ticklabels)))).tolist(),
         }
 
@@ -309,9 +309,9 @@ def main(cfg: DictConfig):
     total_samples = len(y_true)
 
     acc = accuracy_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred, average="weighted", zero_division=0)
-    precision = precision_score(y_true, y_pred, average="weighted", zero_division=0)
-    recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)
+    f1 = f1_score(y_true, y_pred, average="weighted", zero_division=0)  # pyright: ignore[reportArgumentType]
+    precision = precision_score(y_true, y_pred, average="weighted", zero_division=0)  # pyright: ignore[reportArgumentType]
+    recall = recall_score(y_true, y_pred, average="weighted", zero_division=0)  # pyright: ignore[reportArgumentType]
 
     print("=" * 64)
     print("Aggregated Evaluation Results")

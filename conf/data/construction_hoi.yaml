@@ -1,7 +1,9 @@
 # Root directory containing the datasets, relative to the project root.
-# Each dataset lives in a subdirectory of `data_dir` and has a `features/`
-# directory, e.g. data/J1_2026_full_temporal_3s/features. Dataset directories
-# are discovered automatically, so there is no need to list them explicitly.
+# Dataset directories are discovered recursively: any directory containing a
+# `features/` subdirectory is treated as a dataset, and datasets may be grouped
+# in intermediate subdirectories, e.g.
+# data/id/J1_2026_full_temporal_3s/features. There is no need to list them
+# explicitly.
 data_dir: data
 
 defaults:
