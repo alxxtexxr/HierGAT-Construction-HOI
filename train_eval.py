@@ -67,6 +67,7 @@ def main(cfg: DictConfig):
     early_stopping_patience = cfg.train.get("early_stopping_patience", None)  # null = disabled
     early_stopping_metric = cfg.train.get("early_stopping_metric", "val_loss")  # 'val_loss' | 'val_f1' | 'val_accuracy' | 'val_min_per_class_f1'
     num_workers = cfg.train.get("num_workers", 4)          # Number of data loading workers
+    num_test_videos = cfg.train.get("num_test_videos", 1)  # Number of test videos withheld per fold
 
     # Set random seed
     random.seed(seed)
@@ -105,9 +106,25 @@ def main(cfg: DictConfig):
     )  # Count occurrences of each feature directory
     # and sort from lowest to highest
     # kfold_test_feature_dirs = feature_dir_counts.index[:k] # OLD
-    
-    # NEW - Monte Carlo mechanism: Randomly sample k_fold feature directories as test feature directories
-    kfold_test_feature_dirs = random.sample(feature_dir_counts.index.tolist(), k_fold)
+
+    # NEW - Monte Carlo mechanism: Randomly split all feature directories into
+    # k_fold disjoint groups of num_test_videos each; fold i tests group i and
+    # trains on the rest. num_test_videos = 1 reproduces leave-one-out.
+    all_feature_dirs = feature_dir_counts.index.tolist()
+    total_videos = len(all_feature_dirs)
+    required_test_videos = k_fold * num_test_videos
+    if required_test_videos > total_videos:
+        raise ValueError(
+            f"Not enough distinct videos for the requested cross-validation split: "
+            f"k_fold={k_fold} * num_test_videos={num_test_videos} = "
+            f"{required_test_videos} test video slots, but only {total_videos} "
+            f"videos are available. Reduce k_fold or num_test_videos."
+        )
+    shuffled_feature_dirs = random.sample(all_feature_dirs, total_videos)
+    kfold_test_video_groups = [  # list of lists, one per fold
+        shuffled_feature_dirs[i * num_test_videos:(i + 1) * num_test_videos]
+        for i in range(k_fold)
+    ]
 
     # Validate and resolve selected_folds (1-based: fold numbers from 1 to k_fold)
     if selected_folds is not None:
@@ -142,8 +159,8 @@ def main(cfg: DictConfig):
     best_train_loss_list, best_val_loss_list = [], []
     for fold_num in selected_folds:
         fold_idx = fold_num - 1  # Convert 1-based to 0-based index
-        test_feature_dir = kfold_test_feature_dirs[fold_idx]
-        printh(f"Fold {fold_num}: {test_feature_dir}", 128)
+        test_feature_dirs = kfold_test_video_groups[fold_idx]
+        printh(f"Fold {fold_num}: {test_feature_dirs}", 128)
 
         # Create log directory
         root_log_dir = f"{os.getcwd()}/outputs_hiergat/construction_hoi"
@@ -161,16 +178,19 @@ def main(cfg: DictConfig):
         printh("Train-Test Splitting", 96)
 
         # Log training and test video IDs
-        test_video_id = Path(test_feature_dir).parent.stem.split("_")[0]
+        test_video_ids = [
+            Path(str(d)).parent.stem.split("_")[0] for d in test_feature_dirs
+        ]
+        test_video_id = ", ".join(test_video_ids)
         all_video_ids = [
             feature_dir.parent.stem.split("_")[0] for feature_dir in dataset_dirs
         ]
-        # train_video_ids = [feature_dir.parent.stem.split('_')[0] for feature_dir in dataset_dirs if feature_dir != test_feature_dir]
+        # train_video_ids = [video_id for video_id in all_video_ids if video_id not in test_video_ids]
         train_video_ids = [
-            video_id for video_id in all_video_ids if video_id != test_video_id
+            video_id for video_id in all_video_ids if video_id not in set(test_video_ids)
         ]
 
-        print("Test video ID (unseen):", test_video_id)
+        print("Test video IDs (unseen):", test_video_ids)
         print("Training video IDs (seen):")
         print(train_video_ids)
         print()
@@ -180,10 +200,10 @@ def main(cfg: DictConfig):
 
         # Split train and test feature directories
         test_feature_dirs_df = feature_dirs_df[
-            feature_dirs_df["base_dir"] == test_feature_dir
+            feature_dirs_df["base_dir"].isin(test_feature_dirs)
         ]
         train_feature_dirs_df = feature_dirs_df[
-            feature_dirs_df["base_dir"] != test_feature_dir
+            ~feature_dirs_df["base_dir"].isin(test_feature_dirs)
         ]
 
         print("Training action label counts:")
